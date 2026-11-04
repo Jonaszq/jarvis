@@ -41,6 +41,7 @@ DEFAULTS: dict[str, Any] = {
         "voice_id": "TX3LPaxmHKxFdv7VOQHJ",   # Liam (wbudowany); polski Liam z biblioteki wymaga płatnego planu
         "tts_model": "eleven_flash_v2_5",
         "stt_model": "scribe_v1",
+        "stt_realtime": True,                 # Scribe v2 Realtime: audio leci w trakcie mówienia
         "language": "pl",
         "quota_switch": 0.95,                 # przy 95% limitu przechodzimy na Pipera
         "voice_settings": None,

@@ -124,6 +124,7 @@ class MicListener:
         vad: VadConfig | None = None,
         on_wake: Callable[[], None] | None = None,
         clock: Callable[[], float] = time.monotonic,
+        streamer=None,  # np. ScribeRealtime: audio leci do STT już w trakcie mówienia
     ):
         self.wake = wake
         self.device_name = device
@@ -135,6 +136,7 @@ class MicListener:
         self.vad = vad or VadConfig()
         self.on_wake = on_wake
         self.clock = clock
+        self.streamer = streamer
         self.noise = NoiseFloor()
         self._preroll: collections.deque[bytes] = collections.deque(maxlen=max(1, int(preroll_s / self.block_s)))
         self._q: asyncio.Queue[bytes] = asyncio.Queue()
@@ -203,31 +205,50 @@ class MicListener:
         start_blocks = int((start_timeout_s or self.vad.no_speech_timeout_s) / self.block_s)
         threshold = self.noise.threshold(self.vad)
         log.info("próg mowy %.0f (szum tła %.0f)", threshold, self.noise.level)
+        # Strumieniowe STT: po wake wordzie od razu, w dopytaniu dopiero gdy ktoś mówi.
+        session = self.streamer.session() if (self.streamer and wake_t is not None) else None
+        if session:
+            for f in frames:
+                session.feed(f)
         heard = False
         quiet = 0
         n = 0
-        while n < max_blocks:
-            block = await self._block()
-            frames.append(block)
-            n += 1
-            loud = rms(block) >= threshold
-            if loud:
-                heard = True
-                quiet = 0
-            elif heard:
-                quiet += 1
-                if quiet >= silence_blocks:
+        try:
+            while n < max_blocks:
+                block = await self._block()
+                frames.append(block)
+                n += 1
+                loud = rms(block) >= threshold
+                if session:
+                    session.feed(block)
+                elif loud and self.streamer:
+                    session = self.streamer.session()
+                    for f in frames[-4:]:
+                        session.feed(f)
+                if loud:
+                    heard = True
+                    quiet = 0
+                elif heard:
+                    quiet += 1
+                    if quiet >= silence_blocks:
+                        break
+                elif n >= start_blocks:
                     break
-            elif n >= start_blocks:
-                log.info("nikt nic nie powiedział")
-                return None
+        except BaseException:
+            if session:
+                session.abort()
+            raise
         # Liczymy od faktycznego zamilknięcia, a nie od chwili, gdy VAD to zauważył,
         # więc czekanie na ciszę też wchodzi w zmierzone opóźnienie.
         speech_end_t = self.clock() - quiet * self.block_s
         if not heard:
+            log.info("nikt nic nie powiedział")
+            if session:
+                session.abort()
             return None
+        transcript = asyncio.ensure_future(session.finish()) if session else None
         # Ucinamy końcową ciszę poza ~200 ms, mniej audio = szybsze STT.
         trim = max(0, quiet - int(0.2 / self.block_s))
         if trim:
             frames = frames[:-trim]
-        return Utterance(b"".join(frames), self.rate, wake_t, speech_end_t)
+        return Utterance(b"".join(frames), self.rate, wake_t, speech_end_t, transcript)

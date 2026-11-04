@@ -31,6 +31,7 @@ class Utterance:
     sample_rate: int
     wake_t: float | None  # czas wake worda (None przy dopytaniu)
     speech_end_t: float   # czas końca wypowiedzi (monotonic)
+    transcript: "asyncio.Future[str] | None" = None  # tekst ze strumieniowego STT, jeśli był
 
 
 class Listener(Protocol):
@@ -127,7 +128,16 @@ class Orchestrator:
 
     async def _turn(self, utterance: Utterance, turn: Turn) -> None:
         self.state = "nagrywanie"
-        text = (await self.stt.transcribe(utterance.audio, utterance.sample_rate)).strip()
+        text = None
+        if utterance.transcript is not None:
+            try:
+                text = (await utterance.transcript).strip()
+                turn.info["stt_mode"] = "realtime"
+            except Exception as exc:  # strumień nie wyszedł: to samo nagranie zwykłą drogą
+                log.warning("STT na bieżąco nie zadziałało (%s), wysyłam nagranie", exc)
+                turn.info["realtime_error"] = f"{type(exc).__name__}: {exc}"
+        if text is None:
+            text = (await self.stt.transcribe(utterance.audio, utterance.sample_rate)).strip()
         turn.mark("transcript")
         turn.info["heard"] = text
         log.info("usłyszałem: %r", text)

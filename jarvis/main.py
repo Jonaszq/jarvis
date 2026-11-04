@@ -77,6 +77,17 @@ def build_tts(cfg):
     return FallbackTTS(cloud, local)
 
 
+def build_streamer(cfg):
+    """Strumieniowe STT (ElevenLabs Realtime), gdy jest klucz i włączone w configu."""
+    e = cfg["elevenlabs"]
+    key = cfgmod.secret("ELEVENLABS_API_KEY")
+    if cfg["stt"]["engine"] != "elevenlabs" or not e.get("stt_realtime") or not key:
+        return None
+    from .stt.realtime import ScribeRealtime
+
+    return ScribeRealtime(key, e["language"], sample_rate=cfg["audio"]["rate"])
+
+
 def build_stt(cfg):
     local = build_local_stt(cfg)
     client = elevenlabs_client(cfg) if cfg["stt"]["engine"] == "elevenlabs" else None
@@ -188,6 +199,7 @@ async def amain(args) -> None:
             vad=VadConfig(v["silence_ms"], v["energy_threshold"], v["max_record_s"], v["no_speech_timeout_s"],
                           v.get("noise_factor", 2.5)),
             on_wake=lambda: asyncio.ensure_future(player.play_sound("ding")),
+            streamer=build_streamer(cfg),
         )
         listener.start(loop)
         stt = build_stt(cfg)
