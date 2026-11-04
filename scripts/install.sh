@@ -41,7 +41,8 @@ else
 fi
 
 step "Środowisko Pythona (.venv)"
-[ -d .venv ] || python3 -m venv .venv
+# Niedokończone .venv (np. przerwane Ctrl+C) nie ma pipa: tworzymy od nowa.
+[ -x .venv/bin/pip ] || { rm -rf .venv; python3 -m venv .venv; }
 .venv/bin/pip install -q --upgrade pip
 .venv/bin/pip install -q -e . piper-tts onnxruntime scipy scikit-learn tqdm requests
 # openWakeWord 0.4.0 bez zależności: nowsze wersje wymagają tflite-runtime,
