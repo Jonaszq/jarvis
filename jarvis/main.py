@@ -32,7 +32,7 @@ def build_tts(cfg):
     from .tts.piper_local import PiperTTS
 
     t = cfg["tts"]
-    return PiperTTS(cfgmod.resolve(cfg, t["voice"]), t["piper_bin"], t.get("mode", "auto"), t.get("sample_rate"))
+    return PiperTTS(cfgmod.resolve(cfg, t["voice"]), str(cfgmod.resolve(cfg, t["piper_bin"])), t.get("mode", "auto"), t.get("sample_rate"))
 
 
 def build_stt(cfg):

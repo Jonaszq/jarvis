@@ -6,7 +6,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 ROOT="$PWD"
-VOICE_DIR="$HOME/piper/voices"
+VOICE_DIR="$ROOT/models"
 VOICE="pl_PL-gosia-medium"
 VOICE_URL="https://huggingface.co/rhasspy/piper-voices/resolve/main/pl/pl_PL/gosia/medium"
 WHISPER_MODEL="$HOME/whisper.cpp/models/ggml-base.bin"
@@ -15,16 +15,23 @@ WHISPER_URL="https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base
 step() { printf '\n== %s\n' "$*"; }
 
 step "Pakiety systemowe"
-sudo apt-get update -qq
-sudo apt-get install -y -qq python3-venv python3-dev libportaudio2 curl
+NEED=()
+for p in python3-venv libportaudio2 pipewire-alsa curl; do
+  dpkg -s "$p" >/dev/null 2>&1 || NEED+=("$p")
+done
+if [ ${#NEED[@]} -gt 0 ]; then
+  sudo apt-get update -qq && sudo apt-get install -y -qq "${NEED[@]}"
+else
+  echo "wszystko jest"
+fi
 
 step "Środowisko Pythona (.venv)"
 [ -d .venv ] || python3 -m venv .venv
 .venv/bin/pip install -q --upgrade pip
-.venv/bin/pip install -q -e '.[pi]' piper-tts
-
-step "Modele wake worda (openWakeWord)"
-.venv/bin/python -c "import openwakeword.utils as u; u.download_models(['hey_jarvis'])"
+.venv/bin/pip install -q -e . piper-tts onnxruntime scipy scikit-learn tqdm requests
+# openWakeWord 0.4.0 bez zależności: nowsze wersje wymagają tflite-runtime,
+# którego nie ma dla Pythona 3.13 na ARM. Ta wersja ma hey_jarvis w paczce.
+.venv/bin/pip install -q --no-deps openwakeword==0.4.0
 
 step "Polski głos Pipera ($VOICE)"
 mkdir -p "$VOICE_DIR"
@@ -48,14 +55,28 @@ if [ ! -f /etc/jarvis/env ]; then
   echo "Utworzono pusty /etc/jarvis/env (klucze API wpiszesz tam później)."
 fi
 
+step "Wi-Fi bez oszczędzania energii (mniejsze opóźnienia sieci)"
+if command -v nmcli >/dev/null; then
+  CONN=$(nmcli -t -f NAME,TYPE connection show --active | awk -F: '$2=="802-11-wireless"{print $1; exit}')
+  if [ -n "${CONN:-}" ]; then
+    sudo nmcli connection modify "$CONN" 802-11-wireless.powersave 2 && echo "power save wyłączony dla: $CONN (działa od następnego połączenia)"
+  fi
+fi
+
 step "Usługa systemd (użytkownika)"
 mkdir -p "$HOME/.config/systemd/user"
 cp systemd/jarvis.service "$HOME/.config/systemd/user/jarvis.service"
 sudo loginctl enable-linger "$USER"
 systemctl --user daemon-reload
-systemctl --user enable jarvis.service
+# Nie włączamy automatycznego startu, dopóki stary ~/hej-claude też może używać mikrofonu.
+# Gdy Jarvis będzie gotowy: systemctl --user enable --now jarvis
 
 step "Sprawdzenie"
+if command -v vcgencmd >/dev/null; then
+  T=$(vcgencmd get_throttled | cut -d= -f2)
+  [ "$T" = "0x0" ] || echo "UWAGA: zasilanie/throttling: $T (0x50005 = za niskie napięcie, wymień zasilacz lub kabel)"
+fi
+timedatectl show -p NTPSynchronized --value | grep -q yes || echo "UWAGA: zegar nie jest zsynchronizowany (NTP)"
 command -v claude >/dev/null && echo "claude: $(claude --version 2>/dev/null)" || echo "UWAGA: brak 'claude' w PATH"
 .venv/bin/python -m sounddevice | grep -i -E "usb|pnp" || echo "UWAGA: nie widzę mikrofonu USB"
 
@@ -64,6 +85,6 @@ cat <<MSG
 Gotowe. Dalej:
   .venv/bin/python scripts/measure.py all     # pomiary kroków
   .venv/bin/python -m jarvis.main --text      # test bez mikrofonu
-  systemctl --user start jarvis               # start usługi
+  systemctl --user enable --now jarvis        # start usługi (też po restarcie Pi)
   journalctl --user -u jarvis -f              # logi
 MSG

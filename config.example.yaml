@@ -2,7 +2,7 @@
 # Sekrety (klucze API) NIE tutaj, tylko w /etc/jarvis/env.
 
 audio:
-  input_device: "USB PnP Audio Device"   # fragment nazwy z `python -m sounddevice`
+  input_device: null                     # null = domyślne wejście PipeWire; albo fragment nazwy z `python -m sounddevice`
   input_rate: null                       # null = natywna częstotliwość mikrofonu
   preroll_s: 1.0
   output_device: null                    # null = domyślne wyjście (JBL)
@@ -39,8 +39,8 @@ brain:
 
 tts:
   engine: piper_local
-  piper_bin: piper
-  voice: ~/piper/voices/pl_PL-gosia-medium.onnx
+  piper_bin: .venv/bin/piper
+  voice: models/pl_PL-gosia-medium.onnx
   mode: auto
 
 metrics:

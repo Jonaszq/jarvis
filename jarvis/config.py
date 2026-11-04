@@ -15,7 +15,7 @@ import yaml
 
 DEFAULTS: dict[str, Any] = {
     "audio": {
-        "input_device": "USB PnP Audio Device",  # fragment nazwy urządzenia
+        "input_device": None,                    # None = domyślne wejście PipeWire (USB PnP to jedyne źródło)
         "input_rate": None,                      # None = natywna stawka mikrofonu
         "rate": 16000,                           # do tego resamplujemy
         "block_ms": 80,                          # openWakeWord lubi 80 ms
@@ -38,7 +38,7 @@ DEFAULTS: dict[str, Any] = {
     "stt": {
         "engine": "whisper_local",
         "whisper_cli": "~/whisper.cpp/build/bin/whisper-cli",
-        "whisper_model": "~/whisper.cpp/models/ggml-base.bin",
+        "whisper_model": "~/whisper.cpp/models/ggml-base.bin",  # wielojęzyczny, nie .en,
         "language": "pl",
         "threads": 4,
     },
@@ -55,8 +55,8 @@ DEFAULTS: dict[str, Any] = {
     },
     "tts": {
         "engine": "piper_local",
-        "piper_bin": "piper",
-        "voice": "~/piper/voices/pl_PL-gosia-medium.onnx",
+        "piper_bin": ".venv/bin/piper",
+        "voice": "models/pl_PL-gosia-medium.onnx",
         "sample_rate": None,            # None = z pliku .onnx.json
         "mode": "auto",                 # auto | python (piper-tts) | cli (binarka piper)
     },

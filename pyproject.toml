@@ -10,8 +10,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# openwakeword==0.4.0 instaluje scripts/install.sh bez zależności (nowsze chcą tflite-runtime).
 pi = [
-    "openwakeword>=0.6",
+    "piper-tts>=1.3",
+    "onnxruntime",
+    "scipy",
+    "scikit-learn",
 ]
 dev = [
     "pytest>=8.0",

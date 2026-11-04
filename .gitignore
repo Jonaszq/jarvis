@@ -8,3 +8,4 @@ journal/
 models/
 *.wav
 .pytest_cache/
+*.egg-info/

@@ -16,6 +16,7 @@ import collections
 import logging
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Callable, Protocol
 
 import numpy as np
@@ -31,11 +32,28 @@ class WakeDetector(Protocol):
     def reset(self) -> None: ...
 
 
+def wakeword_model_path(model: str) -> str:
+    """Nazwa wbudowanego modelu (np. hey_jarvis) albo ścieżka do własnego .onnx."""
+    if model.endswith((".onnx", ".tflite")):
+        return str(Path(model).expanduser())
+    import openwakeword  # type: ignore
+
+    models = Path(openwakeword.__file__).parent / "resources" / "models"
+    found = sorted(models.glob(f"{model}*.onnx"))
+    if not found:
+        raise FileNotFoundError(f"brak modelu wake worda {model!r} w {models}")
+    return str(found[-1])
+
+
 class OpenWakeWord:
     def __init__(self, model: str = "hey_jarvis"):
         from openwakeword.model import Model  # type: ignore
 
-        self._model = Model(wakeword_models=[model], inference_framework="onnx")
+        path = wakeword_model_path(model)
+        try:  # openwakeword 0.4 (ta wersja działa na Pi z Pythonem 3.13)
+            self._model = Model(wakeword_model_paths=[path])
+        except TypeError:  # 0.6+
+            self._model = Model(wakeword_models=[path], inference_framework="onnx")
         self._name = model
 
     def score(self, block: bytes) -> float:
@@ -58,10 +76,13 @@ def find_input_device(name: str | None) -> tuple[int | None, int]:
     """Zwraca (indeks, natywna częstotliwość) urządzenia, którego nazwa zawiera `name`."""
     import sounddevice as sd
 
-    devices = sd.query_devices()
-    for idx, dev in enumerate(devices):
-        if dev["max_input_channels"] > 0 and (not name or name.lower() in dev["name"].lower()):
-            return idx, int(dev["default_samplerate"])
+    if name:
+        for idx, dev in enumerate(sd.query_devices()):
+            if dev["max_input_channels"] > 0 and name.lower() in dev["name"].lower():
+                return idx, int(dev["default_samplerate"])
+    else:
+        default = sd.query_devices(kind="input")
+        return None, int(default["default_samplerate"])
     default = sd.query_devices(kind="input")
     log.warning("nie znaleziono mikrofonu %r, biorę domyślny: %s", name, default["name"])
     return None, int(default["default_samplerate"])
@@ -71,7 +92,7 @@ class MicListener:
     def __init__(
         self,
         wake: WakeDetector,
-        device: str | None = "USB PnP Audio Device",
+        device: str | None = None,
         input_rate: int | None = None,
         rate: int = 16000,
         block_ms: int = 80,

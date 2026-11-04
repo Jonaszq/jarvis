@@ -87,7 +87,7 @@ def m_claude_cold(cfg) -> dict:
     runs = []
     for _ in range(2):
         t0 = time.monotonic()
-        p = subprocess.run(cmd, capture_output=True, text=True, timeout=120,
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=120, stdin=subprocess.DEVNULL,
                            cwd=str(cfgmod.resolve(cfg, b["workdir"]).expanduser()))
         runs.append({"s": round(time.monotonic() - t0, 3), "rc": p.returncode, "answer": p.stdout.strip()[:120]})
     return out("claude_cold", {"cmd": " ".join(cmd[:1] + ["-p", "…"] + cmd[3:]), "runs": runs})
