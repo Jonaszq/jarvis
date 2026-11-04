@@ -4,6 +4,7 @@
 - SLEEP: usypia Jarvisa; ignoruje wszystko, dopóki nie usłyszy
          "hey Jarvis, obudź się"
 - WAKE:  budzi z uśpienia
+- FORGET: "zapomnij to" usuwa ostatni wpis z dziennika
 
 Dopasowujemy tylko krótkie wypowiedzi (do 6 słów), żeby zdanie typu
 "jak wyłączyć się z grupy na Facebooku" nie uśpiło Jarvisa.
@@ -17,6 +18,7 @@ import unicodedata
 END = "end"
 SLEEP = "sleep"
 WAKE = "wake"
+FORGET = "forget"
 
 MAX_WORDS = 6
 
@@ -26,6 +28,8 @@ _PHRASES: dict[str, tuple[str, ...]] = {
         "idź spać", "śpij", "uśpij się", "zaśnij", "wycisz się", "nie przeszkadzaj",
         "tryb uśpienia", "przestań słuchać",
     ),
+    FORGET: ("zapomnij to", "zapomnij o tym", "zapomnij tamto", "nie zapisuj tego", "usuń to z dziennika",
+             "wymaż to", "skasuj ostatni wpis", "usuń ostatni wpis"),
     WAKE: ("obudź się", "wstań", "aktywuj się", "włącz się", "pobudka", "budzimy się"),
     END: (
         "koniec", "to wszystko", "to tyle", "wystarczy", "dzięki to wszystko", "dziękuję to wszystko",
@@ -54,7 +58,7 @@ def match(text: str) -> str | None:
     if norm in _EXACT_END:
         return END
     padded = f" {norm} "
-    for command in (SLEEP, WAKE, END):  # SLEEP przed END: "stop, wyłącz się" ma uśpić
+    for command in (FORGET, SLEEP, WAKE, END):  # SLEEP przed END: "stop, wyłącz się" ma uśpić
         for phrase in _PHRASES[command]:
             if f" {phrase} " in padded:
                 return command

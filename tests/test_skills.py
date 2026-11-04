@@ -136,7 +136,7 @@ def test_mcp_server_handshake(tmp_path):
     assert [r["id"] for r in replies] == [1, 2, 3]
     assert replies[0]["result"]["protocolVersion"] == "2025-06-18"
     names = {t["name"] for t in replies[1]["result"]["tools"]}
-    assert names == {"weather", "calendar_events", "calendar_add", "calendar_delete", "github_projects", "github_repo"}
+    assert names == {"weather", "calendar_events", "calendar_add", "calendar_delete", "journal_add", "journal_read", "journal_forget_last", "github_projects", "github_repo"}
     assert "error" in replies[2]
 
 

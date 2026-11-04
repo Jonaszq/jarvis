@@ -154,3 +154,19 @@ async def test_sleep_ignores_everything_until_wake_phrase(tmp_path):
     assert not orch.sleeping
     assert p["tts"].said[said] == "Jestem."
     assert p["brain"].asked == ["jaka jest pogoda"]
+
+
+async def test_forget_command_uses_journal(tmp_path):
+    from datetime import datetime
+
+    from jarvis.journal import TZ, Journal
+
+    clock = Clock()
+    j = Journal(tmp_path, clock=lambda: datetime(2026, 11, 4, 20, tzinfo=TZ))
+    j.add("zły humor", "mood")
+    brain, tts = FakeBrain(clock), FakeTTS(clock)
+    orch = Orchestrator(FakeListener([Utterance(b"zapomnij to", 16000, 1.0, 1.0)]), FakeSTT(clock), brain, tts,
+                        FakePlayer(), clock=clock, journal=j)
+    await orch.run_once()
+    assert j.entries(datetime(2026, 11, 4).date()) == [] and brain.asked == []
+    assert tts.said == ["Jasne, zapomniałem."]

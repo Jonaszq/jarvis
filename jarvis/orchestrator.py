@@ -55,6 +55,7 @@ class Orchestrator:
         followup_s: float = 5.0,
         reset_after_s: float = 300.0,
         clock: Callable[[], float] = time.monotonic,
+        journal=None,
     ):
         self.listener = listener
         self.stt = stt
@@ -65,6 +66,7 @@ class Orchestrator:
         self.followup_s = followup_s
         self.reset_after_s = reset_after_s
         self.clock = clock
+        self.journal = journal
         self.state = "czuwanie"
         self.sleeping = False          # po "wyłącz się": czeka tylko na "obudź się"
         self._end_conversation = False
@@ -190,6 +192,10 @@ class Orchestrator:
             self._end_conversation = True
             log.info("uśpiony")
             await self._say("Dobra, wyłączam się. Obudzisz mnie słowami: hey Jarvis, obudź się.", turn)
+        elif command == commands.FORGET:
+            removed = self.journal.forget_last() if self.journal else None
+            log.info("dziennik: zapomniane %r", removed)
+            await self._say("Jasne, zapomniałem." if removed else "Dziś nie mam nic zapisanego w dzienniku.", turn)
         elif command == commands.WAKE:
             was_sleeping, self.sleeping = self.sleeping, False
             log.info("obudzony")

@@ -82,6 +82,7 @@ DEFAULTS: dict[str, Any] = {
             "calendar_id": "primary",
         },
         "github": {"user": "Jonaszq", "days": 14, "top": 5, "pinned": []},
+        "journal": {"dir": "~/jarvis/journal", "summary_at": "23:00"},   # lokalnie, nigdy w repo
         "context_refresh_s": 300,       # co ile odświeżać kontekst dnia
     },
     "metrics": {"path": "~/jarvis/logs/turns.jsonl"},

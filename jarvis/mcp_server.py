@@ -18,6 +18,7 @@ from datetime import date, datetime, time as dtime, timedelta
 import httpx
 
 from . import config as cfgmod
+from .journal import Journal
 from .skills import gcal, github, weather
 
 log = logging.getLogger("jarvis.mcp")
@@ -63,6 +64,29 @@ TOOLS = [
         }, "required": ["event_id"]},
     },
     {
+        "name": "journal_add",
+        "description": "Write a short entry to Jonasz's personal journal (kept privately on the Pi). Use it on your own, "
+                       "without asking, whenever he tells you how he feels, what he plans or what he got done.",
+        "inputSchema": {"type": "object", "properties": {
+            "text": {"type": "string", "description": "One short sentence in Polish, third person or neutral, e.g. 'zmęczony po szkole'"},
+            "kind": {"type": "string", "enum": ["mood", "plan", "done", "note"]},
+        }, "required": ["text", "kind"]},
+    },
+    {
+        "name": "journal_read",
+        "description": "Read Jonasz's journal (entries and evening summaries) for a date range, e.g. 'jak minął mi wczoraj', "
+                       "'co robiłem w tym tygodniu', 'jaki miałem nastrój'.",
+        "inputSchema": {"type": "object", "properties": {
+            "start_date": {"type": "string", "description": "YYYY-MM-DD"},
+            "end_date": {"type": "string", "description": "YYYY-MM-DD, defaults to start_date"},
+        }, "required": ["start_date"]},
+    },
+    {
+        "name": "journal_forget_last",
+        "description": "Delete the most recent journal entry from today (when Jonasz says 'zapomnij to', 'nie zapisuj tego').",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
         "name": "github_projects",
         "description": "Jonasz's GitHub projects (account from config): repositories with recent activity.",
         "inputSchema": {"type": "object", "properties": {
@@ -87,6 +111,7 @@ class Tools:
         self.gh = github.GitHub(client, s["github"]["user"], cfgmod.secret("GITHUB_TOKEN"))
         self.cal = gcal.GoogleCalendar(client, s["calendar"]["credentials"], s["calendar"]["calendar_id"])
         self.client = client
+        self.journal = Journal(s["journal"]["dir"])
 
     async def call(self, name: str, args: dict) -> str:
         if name == "weather":
@@ -108,6 +133,14 @@ class Tools:
         if name == "calendar_delete":
             ev = await self.cal.delete(args["event_id"])
             return "Usunięto: " + gcal.events_summary([ev], ids=False)
+        if name == "journal_add":
+            return "Zapisano w dzienniku: " + self.journal.add(args["text"], args.get("kind") or "note")
+        if name == "journal_read":
+            start = date.fromisoformat(args["start_date"])
+            return self.journal.range_text(start, date.fromisoformat(args.get("end_date") or args["start_date"]))
+        if name == "journal_forget_last":
+            removed = self.journal.forget_last()
+            return f"Usunięto z dziennika: {removed}" if removed else "Dziś nie ma wpisów do usunięcia."
         if name == "github_projects":
             repos = await self.gh.projects(int(args.get("days") or self.gh_cfg["days"]),
                                            int(args.get("limit") or self.gh_cfg["top"]), self.gh_cfg["pinned"])

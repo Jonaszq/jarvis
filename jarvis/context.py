@@ -15,6 +15,7 @@ from typing import Callable
 import httpx
 
 from . import config as cfgmod
+from .journal import Journal
 from .skills import gcal, github, weather
 
 log = logging.getLogger("jarvis.context")
@@ -34,12 +35,24 @@ class DayContext:
         self.clock = clock
         self.parts: dict[str, str] = {}
         self._task: asyncio.Task | None = None
+        self.journal = Journal(cfg["skills"]["journal"]["dir"], clock=clock)
 
     def text(self) -> str:
-        lines = [now_line(self.clock())]
+        now = self.clock()
+        lines = [now_line(now)]
         for key, title in (("weather", "Pogoda"), ("calendar", "Kalendarz (dziś i jutro)"), ("github", "Aktywne projekty GitHub")):
             if self.parts.get(key):
                 lines.append(f"{title}:\n{self.parts[key]}")
+        # Dziennik czytany na bieżąco (lokalny plik), żeby nowy wpis był widać od razu.
+        try:
+            today = self.journal.entries(now.date())
+            if today:
+                lines.append("Dziennik, dzisiejsze wpisy:\n" + "\n".join(today[-15:]))
+            yesterday = self.journal.summary(now.date() - timedelta(days=1))
+            if yesterday:
+                lines.append("Dziennik, podsumowanie wczoraj:\n" + yesterday)
+        except OSError as exc:
+            log.warning("dziennik: %s", exc)
         return "\n\n".join(lines)
 
     def start(self) -> None:

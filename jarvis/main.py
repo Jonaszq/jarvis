@@ -181,6 +181,35 @@ class _MuteTTS:
         yield b""
 
 
+def _journal(cfg):
+    """Dziennik i codzienne podsumowanie (domyślnie 23:00)."""
+    from .journal import Journal, summarize_day, summary_loop
+
+    j = cfg["skills"]["journal"]
+    journal = Journal(j["dir"])
+    b = cfg["brain"]
+
+    async def run(day):
+        cal_text = ""
+        try:
+            import httpx
+            from datetime import datetime, time as dtime, timedelta
+
+            from .skills import gcal
+
+            async with httpx.AsyncClient() as client:
+                cal = gcal.GoogleCalendar(client, cfg["skills"]["calendar"]["credentials"], cfg["skills"]["calendar"]["calendar_id"])
+                if cal.configured:
+                    start = datetime.combine(day, dtime.min, gcal.TZ)
+                    cal_text = gcal.events_summary(await cal.events(start, start + timedelta(days=1)), ids=False)
+        except Exception as exc:
+            log.warning("podsumowanie: kalendarz niedostępny (%s)", exc)
+        return await summarize_day(journal, day, b["claude_bin"], b["model"], cfgmod.resolve(cfg, b["workdir"]), cal_text)
+
+    task = asyncio.create_task(summary_loop(journal, j["summary_at"], run)) if j.get("summary_at") else None
+    return journal, task
+
+
 async def amain(args) -> None:
     cfgmod.load_env_file()
     if args.config:
@@ -196,6 +225,7 @@ async def amain(args) -> None:
 
         day = DayContext(cfg)
         day.start()
+    journal, summary_task = _journal(cfg)
     brain = build_brain(cfg, context=day.text if day else None)
 
     player = None
@@ -234,7 +264,7 @@ async def amain(args) -> None:
         stt = build_stt(cfg)
 
     orch = Orchestrator(listener, stt, brain, tts, player, metrics,
-                        followup_s=cfg["followup_s"], reset_after_s=cfg["brain"]["reset_after_s"])
+                        followup_s=cfg["followup_s"], reset_after_s=cfg["brain"]["reset_after_s"], journal=journal)
     stop = asyncio.Event()
     for sig in (signal.SIGTERM, signal.SIGINT):
         try:
@@ -255,6 +285,8 @@ async def amain(args) -> None:
     finally:
         if day:
             await day.stop()
+        if summary_task:
+            summary_task.cancel()
         if bt_task:
             bt_task.cancel()
         if _EL_CLIENT is not None:
