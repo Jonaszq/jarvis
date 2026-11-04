@@ -22,7 +22,7 @@ from typing import Callable, Protocol
 import numpy as np
 
 from ..orchestrator import Utterance
-from .dsp import Resampler, rms
+from .dsp import HighPass, Resampler, rms
 
 log = logging.getLogger("jarvis.audio")
 
@@ -149,6 +149,8 @@ class MicListener:
         self.clock = clock
         self.streamer = streamer
         self.noise = NoiseFloor()
+        self._hpf = HighPass(120.0, rate)
+        self.level = 0.0  # głośność ostatniego bloku (po filtrze górnoprzepustowym)
         self._preroll: collections.deque[bytes] = collections.deque(maxlen=max(1, int(preroll_s / self.block_s)))
         self._q: asyncio.Queue[bytes] = asyncio.Queue()
         self._stream = None
@@ -191,6 +193,7 @@ class MicListener:
     async def _block(self) -> bytes:
         block = await self._q.get()
         self._preroll.append(block)
+        self.level = self._hpf.level(block)
         return block
 
     async def next_utterance(self, require_wake: bool, timeout_s: float | None) -> Utterance | None:
@@ -200,7 +203,7 @@ class MicListener:
             self.wake.reset()
             while True:
                 block = await self._block()
-                self.noise.update(rms(block))
+                self.noise.update(self.level)
                 if self.wake.score(block) >= self.wake_threshold:
                     wake_t = self.clock()
                     log.info("wake word")
@@ -231,7 +234,7 @@ class MicListener:
                 n += 1
                 # Histereza: start mowy wymaga pełnego progu, ale ciche końcówki
                 # słów i krótkie przerwy nie ucinają nagrania.
-                loud = rms(block) >= (threshold * self.vad.hold_factor if heard else threshold)
+                loud = self.level >= (threshold * self.vad.hold_factor if heard else threshold)
                 if session:
                     session.feed(block)
                 elif loud and self.streamer:

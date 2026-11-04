@@ -54,6 +54,51 @@ def resample(pcm: bytes, src_rate: int, dst_rate: int) -> bytes:
     return Resampler(src_rate, dst_rate).process(pcm)
 
 
+class HighPass:
+    """Filtr górnoprzepustowy (Butterworth 2. rzędu) do liczenia głośności mowy.
+
+    Mikrofon USB na Pi ma silny infradźwięk (~12-23 Hz): w ciszy RMS ~1200,
+    choć powyżej 150 Hz szum to ~70. Bez filtra VAD widział stałą "mowę".
+    Filtrujemy tylko do pomiaru głośności; do STT idzie oryginalne audio.
+    """
+
+    def __init__(self, cutoff_hz: float = 120.0, rate: int = 16000):
+        w0 = 2 * np.pi * cutoff_hz / rate
+        alpha = np.sin(w0) / np.sqrt(2)
+        cos = np.cos(w0)
+        a0 = 1 + alpha
+        self.b = np.array([(1 + cos) / 2, -(1 + cos), (1 + cos) / 2]) / a0
+        self.a = np.array([1.0, -2 * cos / a0, (1 - alpha) / a0])
+        self._zi = np.zeros(2)
+        try:
+            from scipy.signal import lfilter  # type: ignore
+
+            self._lfilter = lfilter
+        except ImportError:
+            self._lfilter = None
+
+    def process(self, pcm: bytes) -> np.ndarray:
+        x = np.frombuffer(pcm, dtype=np.int16).astype(np.float64)
+        if self._lfilter is not None:
+            y, self._zi = self._lfilter(self.b, self.a, x, zi=self._zi)
+            return y
+        b0, b1, b2 = self.b
+        _, a1, a2 = self.a
+        z1, z2 = self._zi
+        y = np.empty_like(x)
+        for i, v in enumerate(x):  # postać transponowana II, jak lfilter
+            out = b0 * v + z1
+            z1 = b1 * v - a1 * out + z2
+            z2 = b2 * v - a2 * out
+            y[i] = out
+        self._zi = np.array([z1, z2])
+        return y
+
+    def level(self, pcm: bytes) -> float:
+        y = self.process(pcm)
+        return float(np.sqrt(np.mean(y * y))) if len(y) else 0.0
+
+
 def rms(pcm: bytes) -> float:
     x = np.frombuffer(pcm, dtype=np.int16).astype(np.float32)
     return float(np.sqrt(np.mean(x * x))) if len(x) else 0.0

@@ -36,3 +36,23 @@ def test_same_rate_passthrough():
 def test_rms_and_tone():
     assert rms(b"") == 0.0
     assert rms(tone([(440, 0.1)], 16000)) > 1000
+
+
+def test_highpass_removes_infrasound_keeps_speech_band():
+    import numpy as np
+
+    from jarvis.audio.dsp import HighPass
+
+    t = np.arange(16000) / 16000
+    rumble = (1200 * np.sqrt(2) * np.sin(2 * np.pi * 15 * t)).astype(np.int16).tobytes()
+    voice = (1000 * np.sqrt(2) * np.sin(2 * np.pi * 300 * t)).astype(np.int16).tobytes()
+    hp = HighPass(120, 16000)
+    hp.level(rumble[:3200])  # rozbieg filtra
+    assert hp.level(rumble[3200:]) < 50
+    hp2 = HighPass(120, 16000)
+    hp2.level(voice[:3200])
+    assert 850 < hp2.level(voice[3200:]) < 1050
+    hp3 = HighPass(120, 16000)
+    hp3._lfilter = None  # wersja bez scipy daje to samo
+    hp3.level(voice[:3200])
+    assert abs(hp3.level(voice[3200:]) - hp2.level(voice[3200:])) < 60
