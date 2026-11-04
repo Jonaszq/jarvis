@@ -36,7 +36,7 @@ DEFAULTS: dict[str, Any] = {
     },
     "followup_s": 5,             # okno na dopytanie bez wake worda
     "elevenlabs": {
-        "voice_id": "pNInz6obpgDQGcFmaJgB",   # tymczasowy męski głos; wybór: scripts/voices.py
+        "voice_id": "TX3LPaxmHKxFdv7VOQHJ",   # Liam (wbudowany); polski Liam z biblioteki wymaga płatnego planu
         "tts_model": "eleven_flash_v2_5",
         "stt_model": "scribe_v1",
         "language": "pl",

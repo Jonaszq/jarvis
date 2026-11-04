@@ -20,8 +20,15 @@ vad:
 
 followup_s: 5
 
+elevenlabs:
+  voice_id: TX3LPaxmHKxFdv7VOQHJ   # Liam (wbudowany). Na planie Starter: polski Liam 4uhvFPkbY1bS6SM5NREF
+  tts_model: eleven_flash_v2_5
+  stt_model: scribe_v1
+  language: pl
+  quota_switch: 0.95
+
 stt:
-  engine: whisper_local
+  engine: elevenlabs                # zapas: whisper_local
   whisper_cli: ~/whisper.cpp/build/bin/whisper-cli
   whisper_model: ~/whisper.cpp/models/ggml-base.bin
   language: pl
@@ -38,7 +45,7 @@ brain:
   warmup: false
 
 tts:
-  engine: piper_local
+  engine: elevenlabs                # zapas: piper_local
   piper_bin: .venv/bin/piper
   voice: models/pl_PL-darkman-medium.onnx
   mode: auto
