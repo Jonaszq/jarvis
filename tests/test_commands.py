@@ -8,6 +8,9 @@ def test_matches_short_commands():
     assert match("Hej Jarvis, obudź się.") == WAKE
     assert match("Dzięki, to wszystko.") == END
     assert match("Koniec") == END
+    assert match("Dzięki.") == END
+    assert match("Dziękuję bardzo!") == END
+    assert match("Dzięki, a jaka jutro pogoda?") is None
     assert match("stop wyłącz się") == SLEEP
 
 

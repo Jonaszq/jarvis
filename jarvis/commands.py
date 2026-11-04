@@ -33,6 +33,10 @@ _PHRASES: dict[str, tuple[str, ...]] = {
     ),
 }
 
+# Te kończą rozmowę tylko jako cała wypowiedź ("dzięki" tak, "dzięki, a jutro?" nie).
+_EXACT_END = {"dzięki", "dziękuję", "dzięki wielkie", "dziękuję bardzo", "dzięki bardzo", "ok dzięki",
+              "okej dzięki", "super dzięki", "spoko", "dobra dzięki"}
+
 _WAKE_PREFIX = re.compile(r"^(hej|hey|ej|ok|okej)?\s*(jarvis|dżarwis|jarwis|dżarvis)\b[\s,!.]*")
 
 
@@ -47,6 +51,8 @@ def match(text: str) -> str | None:
     norm = normalize(text)
     if not norm or len(norm.split()) > MAX_WORDS:
         return None
+    if norm in _EXACT_END:
+        return END
     padded = f" {norm} "
     for command in (SLEEP, WAKE, END):  # SLEEP przed END: "stop, wyłącz się" ma uśpić
         for phrase in _PHRASES[command]:
