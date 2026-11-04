@@ -14,6 +14,21 @@ WHISPER_URL="https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base
 
 step() { printf '\n== %s\n' "$*"; }
 
+step "Zegar"
+# Zły zegar psuje apt (podpisy "z przyszłości") i TLS. Gdy NTP nie działa,
+# bierzemy czas z nagłówka Date serwera HTTPS.
+if ! timedatectl show -p NTPSynchronized --value | grep -q yes; then
+  NET_DATE=$(curl -sI https://www.google.com | grep -i '^date:' | cut -d' ' -f2- | tr -d '\r')
+  if [ -n "$NET_DATE" ]; then
+    DIFF=$(( $(date -d "$NET_DATE" +%s) - $(date +%s) ))
+    if [ "${DIFF#-}" -gt 300 ]; then
+      echo "Zegar przesunięty o ${DIFF} s, ustawiam: $NET_DATE"
+      sudo date -s "$NET_DATE" >/dev/null
+    fi
+  fi
+fi
+date
+
 step "Pakiety systemowe"
 NEED=()
 for p in python3-venv libportaudio2 pipewire-alsa curl; do
