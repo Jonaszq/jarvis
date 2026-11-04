@@ -70,7 +70,9 @@ class VadConfig:
     energy_threshold: float = 500.0   # minimalny próg; faktyczny rośnie z szumem tła
     max_record_s: float = 12.0
     no_speech_timeout_s: float = 4.0
-    noise_factor: float = 2.5         # mowa = głośniej niż szum tła razy tyle
+    noise_factor: float = 1.8         # mowa = głośniej niż szum tła razy tyle
+    max_threshold: float = 1200.0     # próg nigdy wyżej (inaczej cichszy głos ginie w szumie)
+    hold_factor: float = 0.6          # po starcie mowy: dalej mowa, póki > próg x tyle
 
 
 class NoiseFloor:
@@ -92,7 +94,7 @@ class NoiseFloor:
             self.level += self.alpha * (level - self.level)
 
     def threshold(self, vad: "VadConfig") -> float:
-        return max(vad.energy_threshold, self.level * vad.noise_factor)
+        return max(vad.energy_threshold, min(vad.max_threshold, self.level * vad.noise_factor))
 
 
 def find_input_device(name: str | None) -> tuple[int | None, int]:
@@ -218,7 +220,9 @@ class MicListener:
                 block = await self._block()
                 frames.append(block)
                 n += 1
-                loud = rms(block) >= threshold
+                # Histereza: start mowy wymaga pełnego progu, ale ciche końcówki
+                # słów i krótkie przerwy nie ucinają nagrania.
+                loud = rms(block) >= (threshold * self.vad.hold_factor if heard else threshold)
                 if session:
                     session.feed(block)
                 elif loud and self.streamer:

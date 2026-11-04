@@ -69,3 +69,24 @@ async def test_timeout_kills_and_recovers(tmp_path):
         await collect(brain, "zawies")
     assert (await collect(brain, "po awarii")).startswith("Odpowiedź 1.")
     await brain.close()
+
+
+def test_web_tools_flag():
+    from jarvis.brain.claude_code import build_command
+    from pathlib import Path
+
+    off = build_command("claude", "haiku", None, Path("p.md"))
+    assert off[off.index("--tools") + 1] == "" and "--allowedTools" not in off
+    on = build_command("claude", "haiku", None, Path("p.md"), web=True)
+    assert on[on.index("--tools") + 1] == "WebSearch,WebFetch"
+    assert on[on.index("--allowedTools") + 1] == "WebSearch,WebFetch"
+
+
+def test_text_blocks_after_tool_get_a_space():
+    from jarvis.brain.claude_code import _new_text_block, _tool_name
+
+    start = {"type": "stream_event", "event": {"type": "content_block_start", "content_block": {"type": "text"}}}
+    tool = {"type": "stream_event", "event": {"type": "content_block_start",
+            "content_block": {"type": "server_tool_use", "name": "web_search"}}}
+    assert _new_text_block(start) and not _new_text_block(tool)
+    assert _tool_name(tool) == "web_search" and _tool_name(start) is None

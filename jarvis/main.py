@@ -23,7 +23,8 @@ def build_brain(cfg):
     from .brain.claude_code import ClaudeCodeBrain, build_command
 
     b = cfg["brain"]
-    cmd = build_command(b["claude_bin"], b["model"], b.get("effort"), cfgmod.resolve(cfg, b["prompt_file"]))
+    cmd = build_command(b["claude_bin"], b["model"], b.get("effort"), cfgmod.resolve(cfg, b["prompt_file"]),
+                        web=b.get("web", True))
     return ClaudeCodeBrain(cmd, cfgmod.resolve(cfg, b["workdir"]), timeout_s=b["timeout_s"],
                            warmup=b.get("warmup", False))
 
@@ -197,7 +198,7 @@ async def amain(args) -> None:
             rate=a["rate"], block_ms=a["block_ms"], preroll_s=a["preroll_s"],
             wake_threshold=w["threshold"],
             vad=VadConfig(v["silence_ms"], v["energy_threshold"], v["max_record_s"], v["no_speech_timeout_s"],
-                          v.get("noise_factor", 2.5)),
+                          v.get("noise_factor", 1.8), v.get("max_threshold", 1200), v.get("hold_factor", 0.6)),
             on_wake=lambda: asyncio.ensure_future(player.play_sound("ding")),
             streamer=build_streamer(cfg),
         )

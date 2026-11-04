@@ -26,7 +26,9 @@ def build_command(
     model: str,
     effort: str | None,
     prompt_file: Path,
+    web: bool = False,
 ) -> list[str]:
+    tools = "WebSearch,WebFetch" if web else ""
     cmd = [
         claude_bin,
         "-p",
@@ -36,11 +38,14 @@ def build_command(
         "--include-partial-messages",
         "--model", model,
         "--system-prompt-file", str(prompt_file),
-        "--tools", "",
+        "--tools", tools,
         "--strict-mcp-config",
         "--disable-slash-commands",
         "--no-session-persistence",
     ]
+    if web:
+        # Bez tego CLI w trybie -p odrzuca narzędzia (nie ma kogo zapytać o zgodę).
+        cmd += ["--allowedTools", tools]
     if effort:
         cmd += ["--effort", effort]
     return cmd
@@ -169,6 +174,11 @@ class ClaudeCodeBrain:
                         continue
                     kind = event.get("type")
                     if kind == "stream_event":
+                        if streamed and _new_text_block(event):
+                            yield " "  # "Już sprawdzam." + (szukanie) + odpowiedź: nie sklejać zdań
+                        tool = _tool_name(event)
+                        if tool:
+                            log.info("mózg używa narzędzia: %s", tool)
                         delta = _text_delta(event)
                         if delta:
                             streamed = True
@@ -207,6 +217,20 @@ def _text_delta(event: dict) -> str | None:
     delta = inner.get("delta") or {}
     if delta.get("type") == "text_delta":
         return delta.get("text") or None
+    return None
+
+
+def _new_text_block(event: dict) -> bool:
+    inner = event.get("event") or {}
+    block = inner.get("content_block") or {}
+    return inner.get("type") == "content_block_start" and block.get("type") == "text"
+
+
+def _tool_name(event: dict) -> str | None:
+    inner = event.get("event") or {}
+    block = inner.get("content_block") or {}
+    if inner.get("type") == "content_block_start" and block.get("type") in ("tool_use", "server_tool_use"):
+        return block.get("name") or "?"
     return None
 
 

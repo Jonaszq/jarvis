@@ -30,9 +30,11 @@ DEFAULTS: dict[str, Any] = {
         "cooldown_s": 1.5,
     },
     "vad": {
-        "silence_ms": 700,       # etap 1: prosty próg energii; Silero w etapie 4
+        "silence_ms": 900,       # pauza w środku zdania nie może kończyć nagrania
         "energy_threshold": 500, # RMS dla int16; stroimy pod mikrofon
-        "noise_factor": 2.5,     # próg = max(energy_threshold, szum tła x noise_factor)
+        "noise_factor": 1.8,     # próg = max(energy_threshold, szum tła x noise_factor)
+        "max_threshold": 1200,   # górny limit progu
+        "hold_factor": 0.6,      # w trakcie mowy wystarczy 60% progu
         "max_record_s": 12,
         "no_speech_timeout_s": 4,
     },
@@ -61,8 +63,9 @@ DEFAULTS: dict[str, Any] = {
         "prompt_file": "brain/jarvis_prompt.md",
         "workdir": "~/.jarvis-brain",   # pusty katalog, żeby CLI nie czytało repo
         "reset_after_s": 300,
-        "timeout_s": 30,
+        "timeout_s": 45,             # max przerwa w strumieniu (szukanie w sieci trwa)
         "warmup": False,
+        "web": True,                    # wyszukiwanie w internecie (WebSearch/WebFetch w Claude Code)
     },
     "tts": {
         "engine": "elevenlabs",               # elevenlabs (zapas: piper_local) | piper_local

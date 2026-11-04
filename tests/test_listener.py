@@ -19,7 +19,9 @@ def test_noise_floor_tracks_background_and_ignores_speech():
         nf.update(5000)  # mowa nie podbija szumu
     assert nf.level < 600
     assert NoiseFloor(100).threshold(VadConfig(energy_threshold=400)) == 400
-    assert nf.threshold(VadConfig(energy_threshold=400)) > 1300
+    assert 900 < nf.threshold(VadConfig(energy_threshold=400)) <= 1200
+    loud = NoiseFloor(initial=2000)
+    assert loud.threshold(VadConfig(energy_threshold=400)) == 1200  # limit: głos nie ginie w szumie
 
 
 class NeverWake:
@@ -82,3 +84,14 @@ async def test_silence_aborts_stream():
         lst._q.put_nowait(b)
     assert await lst._record(wake_t=1.0, start_timeout_s=4) is None
     assert st.sessions[0].aborted
+
+
+async def test_quiet_word_endings_do_not_cut_recording():
+    lst = MicListener(NeverWake(), vad=VadConfig(silence_ms=400, energy_threshold=400))
+    for _ in range(200):
+        lst.noise.update(300)  # próg ~540
+    speech = [block(2000)] * 5 + [block(420)] * 8 + [block(2000)] * 5  # cicha końcówka/pauza w środku
+    for b in speech + [block(100)] * 10:
+        lst._q.put_nowait(b)
+    utt = await lst._record(wake_t=1.0, start_timeout_s=4)
+    assert len(utt.audio) >= len(b"".join(speech))  # druga część zdania nie ucięta
