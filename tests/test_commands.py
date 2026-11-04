@@ -20,4 +20,7 @@ def test_ignores_normal_questions():
     assert match("Nic mi nie mów o kalendarzu na koniec tygodnia proszę") is None
     assert match("") is None
     assert match("Nic się nie dzieje z pogodą?") is None
+    assert match("Jaka pogoda na koniec tygodnia?") is None
+    assert match("Nie śpij jeszcze") is None
+    assert match("Koniec rozmowy.") == "end"
     assert match("Stop.") == "end" and match("Cicho!") == "end"

@@ -32,8 +32,7 @@ _PHRASES: dict[str, tuple[str, ...]] = {
              "wymaż to", "skasuj ostatni wpis", "usuń ostatni wpis"),
     WAKE: ("obudź się", "wstań", "aktywuj się", "włącz się", "pobudka", "budzimy się"),
     END: (
-        "koniec", "to wszystko", "to tyle", "wystarczy", "dzięki to wszystko", "dziękuję to wszystko",
-        "spoko dzięki",
+        "koniec", "to wszystko", "dzięki to wszystko", "dziękuję to wszystko", "na tym koniec", "koniec rozmowy",
     ),
 }
 
@@ -42,7 +41,8 @@ _PHRASES: dict[str, tuple[str, ...]] = {
 # z pogodą"), też tylko jako cała wypowiedź.
 _EXACT_END = {"dzięki", "dziękuję", "dzięki wielkie", "dziękuję bardzo", "dzięki bardzo", "ok dzięki",
               "okej dzięki", "super dzięki", "spoko", "dobra dzięki", "nic", "nieważne", "anuluj", "stop",
-              "zamknij się", "cicho", "spadaj", "stop stop", "dobra stop", "cicho bądź"}
+              "zamknij się", "cicho", "spadaj", "stop stop", "dobra stop", "cicho bądź", "to tyle", "wystarczy",
+              "dobra wystarczy", "to tyle dzięki"}
 
 _WAKE_PREFIX = re.compile(r"^(hej|hey|ej|ok|okej)?\s*(jarvis|dżarwis|jarwis|dżarvis)\b[\s,!.]*")
 
@@ -63,6 +63,11 @@ def match(text: str) -> str | None:
     padded = f" {norm} "
     for command in (FORGET, SLEEP, WAKE, END):  # SLEEP przed END: "stop, wyłącz się" ma uśpić
         for phrase in _PHRASES[command]:
-            if f" {phrase} " in padded:
+            # Jedno słowo ("koniec", "śpij") tylko jako cała wypowiedź: "pogoda na
+            # koniec tygodnia" nie może kończyć rozmowy.
+            if " " not in phrase:
+                if norm == phrase:
+                    return command
+            elif f" {phrase} " in padded:
                 return command
     return None

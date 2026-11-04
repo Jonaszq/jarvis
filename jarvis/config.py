@@ -38,7 +38,8 @@ DEFAULTS: dict[str, Any] = {
         "max_record_s": 12,
         "no_speech_timeout_s": 4,
     },
-    "followup_s": 5,             # okno na dopytanie bez wake worda
+    "followup_s": 5,
+    "max_spoken_sentences": 5,   # dłuższa odpowiedź: "mówić dalej?"             # okno na dopytanie bez wake worda
     "elevenlabs": {
         "voice_id": "TX3LPaxmHKxFdv7VOQHJ",   # Liam (wbudowany); polski Liam z biblioteki wymaga płatnego planu
         "tts_model": "eleven_flash_v2_5",

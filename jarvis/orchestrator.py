@@ -34,6 +34,15 @@ class Utterance:
     transcript: "asyncio.Future[str] | None" = None  # tekst ze strumieniowego STT, jeśli był
 
 
+MORE_QUESTION = "Mam jeszcze więcej, mówić dalej?"
+_YES = {"tak", "dalej", "mów dalej", "mów", "dawaj", "jasne", "kontynuuj", "no tak", "tak mów", "tak dalej",
+        "tak proszę", "proszę", "no", "pewnie", "jedź", "leć", "dawaj dalej", "tak tak", "okej", "ok"}
+
+
+def _is_yes(text: str) -> bool:
+    return commands.normalize(text) in _YES
+
+
 class Listener(Protocol):
     async def next_utterance(self, require_wake: bool, timeout_s: float | None) -> Utterance | None:
         """Czeka na wypowiedź. Z require_wake=True najpierw na wake word.
@@ -56,6 +65,7 @@ class Orchestrator:
         reset_after_s: float = 300.0,
         clock: Callable[[], float] = time.monotonic,
         journal=None,
+        max_sentences: int = 5,
     ):
         self.listener = listener
         self.stt = stt
@@ -67,6 +77,10 @@ class Orchestrator:
         self.reset_after_s = reset_after_s
         self.clock = clock
         self.journal = journal
+        # Twardy limit: Haiku potrafi mimo promptu napisać minutę mowy.
+        # Po limicie pytamy "mówić dalej?", a resztę trzymamy na "tak".
+        self.max_sentences = max_sentences
+        self._more: list[str] = []
         self.state = "czuwanie"
         self.sleeping = False          # po "wyłącz się": czeka tylko na "obudź się"
         self._end_conversation = False
@@ -143,6 +157,12 @@ class Orchestrator:
         turn.mark("transcript")
         turn.info["heard"] = text
         log.info("usłyszałem: %r", text)
+        if self._more:
+            more, self._more = self._more, []
+            if _is_yes(text):
+                turn.info["continued"] = True
+                await self._speak_limited(more, turn)
+                return
         command = commands.match(text)
         if self.sleeping:
             if command != commands.WAKE:
@@ -169,18 +189,31 @@ class Orchestrator:
         sentences: asyncio.Queue[str | None] = asyncio.Queue()
         speaker = asyncio.create_task(self._speak(sentences, turn))
         answer: list[str] = []
+        spoken, rest = 0, []
+
+        async def emit(sentence: str) -> None:
+            nonlocal spoken
+            turn.mark("first_sentence")
+            if spoken < self.max_sentences:
+                spoken += 1
+                await sentences.put(sentence)
+            else:
+                rest.append(sentence)
+
         try:
             splitter = SentenceSplitter()
             async for chunk in self.brain.ask(text):
                 turn.mark("first_token")
                 answer.append(chunk)
                 for sentence in splitter.feed(chunk):
-                    turn.mark("first_sentence")
-                    await sentences.put(sentence)
+                    await emit(sentence)
             for sentence in splitter.flush():
-                turn.mark("first_sentence")
-                await sentences.put(sentence)
+                await emit(sentence)
             turn.mark("brain_done")
+            if rest:
+                self._more = rest
+                turn.info["held_back"] = len(rest)
+                await sentences.put(MORE_QUESTION)
         finally:
             await sentences.put(None)
             turn.info["answer"] = "".join(answer).strip()
@@ -203,6 +236,17 @@ class Orchestrator:
             was_sleeping, self.sleeping = self.sleeping, False
             log.info("obudzony")
             await self._say("Jestem." if was_sleeping else "Przecież nie śpię.", turn)
+
+    async def _speak_limited(self, parts: list[str], turn: Turn) -> None:
+        now, later = parts[: self.max_sentences], parts[self.max_sentences:]
+        queue: asyncio.Queue[str | None] = asyncio.Queue()
+        for s in now:
+            await queue.put(s)
+        if later:
+            self._more = later
+            await queue.put(MORE_QUESTION)
+        await queue.put(None)
+        await self._speak(queue, turn)
 
     async def _say(self, text: str, turn: Turn) -> None:
         queue: asyncio.Queue[str | None] = asyncio.Queue()

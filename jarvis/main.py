@@ -264,7 +264,8 @@ async def amain(args) -> None:
         stt = build_stt(cfg)
 
     orch = Orchestrator(listener, stt, brain, tts, player, metrics,
-                        followup_s=cfg["followup_s"], reset_after_s=cfg["brain"]["reset_after_s"], journal=journal)
+                        followup_s=cfg["followup_s"], reset_after_s=cfg["brain"]["reset_after_s"], journal=journal,
+                        max_sentences=cfg.get("max_spoken_sentences", 5))
     stop = asyncio.Event()
     for sig in (signal.SIGTERM, signal.SIGINT):
         try:

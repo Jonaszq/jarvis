@@ -178,3 +178,25 @@ async def test_empty_transcript_ends_conversation(tmp_path):
     await orch.run_once()
     assert parts["listener"].calls == [True]  # bez dopytania po pustej turze
     assert parts["player"].sounds == ["nie_slysze"]
+
+
+async def test_long_answer_is_held_back_until_yes(tmp_path):
+    long = tuple(f"Zdanie {i}. " for i in range(1, 9))
+    utts = [Utterance(b"opowiedz", 16000, 1.0, 1.0), Utterance(b"tak", 16000, None, 2.0)]
+    orch, parts, clock = setup(utts, tmp_path, chunks=long)
+    orch.max_sentences = 3
+    await orch.run_once()
+    said = parts["tts"].said
+    assert said[:4] == ["Zdanie 1.", "Zdanie 2.", "Zdanie 3.", "Mam jeszcze więcej, mówić dalej?"]
+    assert said[4:] == ["Zdanie 4.", "Zdanie 5.", "Zdanie 6.", "Mam jeszcze więcej, mówić dalej?"]
+    assert parts["brain"].asked == ["opowiedz"]  # "tak" nie poszło do mózgu
+    assert orch._more == ["Zdanie 7.", "Zdanie 8."]
+
+
+async def test_held_back_dropped_on_new_question(tmp_path):
+    long = tuple(f"Zdanie {i}. " for i in range(1, 6))
+    utts = [Utterance(b"opowiedz", 16000, 1.0, 1.0), Utterance(b"a pogoda", 16000, None, 2.0)]
+    orch, parts, clock = setup(utts, tmp_path, chunks=long)
+    orch.max_sentences = 2
+    await orch.run_once()
+    assert parts["brain"].asked == ["opowiedz", "a pogoda"]
