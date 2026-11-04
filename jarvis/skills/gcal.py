@@ -87,6 +87,18 @@ class GoogleCalendar:
             body["location"] = location
         return await self._req("POST", f"/calendars/{self.calendar_id}/events", json=body)
 
+    async def get(self, event_id: str) -> dict:
+        return await self._req("GET", f"/calendars/{self.calendar_id}/events/{event_id}")
+
+    async def delete(self, event_id: str) -> dict:
+        """Usuwa wydarzenie i zwraca je (żeby potwierdzić, co zniknęło)."""
+        ev = await self.get(event_id)
+        token = await self._access_token()
+        r = await self.client.request("DELETE", f"{API}/calendars/{self.calendar_id}/events/{event_id}",
+                                      headers={"Authorization": f"Bearer {token}"}, timeout=10)
+        r.raise_for_status()
+        return ev
+
 
 def parse_when(value: str) -> datetime | date:
     """'2026-11-05T15:00' (czas lokalny) albo '2026-11-05' (cały dzień)."""
@@ -112,7 +124,7 @@ def _end_time(ev: dict) -> str | None:
     return None
 
 
-def events_summary(events: list[dict]) -> str:
+def events_summary(events: list[dict], ids: bool = True) -> str:
     if not events:
         return "brak wydarzeń"
     lines, last_day = [], None
@@ -124,5 +136,6 @@ def events_summary(events: list[dict]) -> str:
             last_day = day
         when = f"{t}–{_end_time(ev)}" if t else "cały dzień"
         extra = f" ({ev['location']})" if ev.get("location") else ""
-        lines.append(f"- {when} {ev.get('summary') or '(bez tytułu)'}{extra}")
+        ref = f" [id {ev['id']}]" if ids and ev.get("id") else ""
+        lines.append(f"- {when} {ev.get('summary') or '(bez tytułu)'}{extra}{ref}")
     return "\n".join(lines)

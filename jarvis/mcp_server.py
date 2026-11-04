@@ -54,6 +54,15 @@ TOOLS = [
         }, "required": ["title", "start"]},
     },
     {
+        "name": "calendar_delete",
+        "description": "Delete an event from Jonasz's Google Calendar by its id (shown as [id ...] in calendar listings "
+                       "and in the context). ONLY call this after you have named the event (title, day, time) and "
+                       "Jonasz explicitly confirmed the deletion in his last message.",
+        "inputSchema": {"type": "object", "properties": {
+            "event_id": {"type": "string"},
+        }, "required": ["event_id"]},
+    },
+    {
         "name": "github_projects",
         "description": "Jonasz's GitHub projects (account from config): repositories with recent activity.",
         "inputSchema": {"type": "object", "properties": {
@@ -96,6 +105,9 @@ class Tools:
                 end = start + timedelta(minutes=int(args["duration_minutes"]))
             ev = await self.cal.add(args["title"], start, end, args.get("description"), args.get("location"))
             return "Dodano: " + gcal.events_summary([ev])
+        if name == "calendar_delete":
+            ev = await self.cal.delete(args["event_id"])
+            return "Usunięto: " + gcal.events_summary([ev], ids=False)
         if name == "github_projects":
             repos = await self.gh.projects(int(args.get("days") or self.gh_cfg["days"]),
                                            int(args.get("limit") or self.gh_cfg["top"]), self.gh_cfg["pinned"])

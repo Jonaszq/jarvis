@@ -29,6 +29,9 @@ REPOS = [
 ]
 
 
+DELETED: list[str] = []
+
+
 def handler(request: httpx.Request) -> httpx.Response:
     url = str(request.url)
     if "open-meteo" in url:
@@ -37,11 +40,17 @@ def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json=REPOS)
     if "oauth2.googleapis.com/token" in url:
         return httpx.Response(200, json={"access_token": "t", "expires_in": 3600})
-    if "calendar/v3" in url and request.method == "GET":
+    if url.split("?")[0].endswith("/events") and request.method == "GET":
         return httpx.Response(200, json={"items": [
-            {"summary": "Dentysta", "start": {"dateTime": "2026-11-05T10:00:00+01:00"}, "end": {"dateTime": "2026-11-05T11:00:00+01:00"}},
+            {"id": "ev1", "summary": "Dentysta", "start": {"dateTime": "2026-11-05T10:00:00+01:00"}, "end": {"dateTime": "2026-11-05T11:00:00+01:00"}},
             {"summary": "Urodziny Ani", "start": {"date": "2026-11-05"}, "end": {"date": "2026-11-06"}},
         ]})
+    if "calendar/v3/calendars/primary/events/ev1" in url and request.method == "GET":
+        return httpx.Response(200, json={"id": "ev1", "summary": "Dentysta",
+                                         "start": {"dateTime": "2026-11-05T10:00:00+01:00"}, "end": {"dateTime": "2026-11-05T11:00:00+01:00"}})
+    if "calendar/v3/calendars/primary/events/ev1" in url and request.method == "DELETE":
+        DELETED.append("ev1")
+        return httpx.Response(204)
     if "calendar/v3" in url and request.method == "POST":
         body = json.loads(request.content)
         assert request.headers["Authorization"] == "Bearer t"
@@ -89,6 +98,10 @@ async def test_tools_calendar_add_and_list(tmp_path):
         assert not out["isError"] and "15:00–15:30 Fryzjer" in out["content"][0]["text"]
         out = await call_tool(tools, "calendar_events", {"start_date": "2026-11-05"})
         assert "Dentysta" in out["content"][0]["text"] and "cały dzień Urodziny Ani" in out["content"][0]["text"]
+        assert "[id ev1]" in out["content"][0]["text"]
+        out = await call_tool(tools, "calendar_delete", {"event_id": "ev1"})
+        assert not out["isError"] and DELETED == ["ev1"]
+        assert "Usunięto" in out["content"][0]["text"] and "Dentysta" in out["content"][0]["text"] and "[id" not in out["content"][0]["text"]
         out = await call_tool(tools, "weather", {"days": 1})
         assert "Gorzów" in out["content"][0]["text"]
 
@@ -123,7 +136,7 @@ def test_mcp_server_handshake(tmp_path):
     assert [r["id"] for r in replies] == [1, 2, 3]
     assert replies[0]["result"]["protocolVersion"] == "2025-06-18"
     names = {t["name"] for t in replies[1]["result"]["tools"]}
-    assert names == {"weather", "calendar_events", "calendar_add", "github_projects", "github_repo"}
+    assert names == {"weather", "calendar_events", "calendar_add", "calendar_delete", "github_projects", "github_repo"}
     assert "error" in replies[2]
 
 
