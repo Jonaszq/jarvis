@@ -89,8 +89,8 @@ async def test_silence_aborts_stream():
 async def test_quiet_word_endings_do_not_cut_recording():
     lst = MicListener(NeverWake(), vad=VadConfig(silence_ms=400, energy_threshold=400))
     for _ in range(200):
-        lst.noise.update(300)  # próg ~540
-    speech = [block(2000)] * 5 + [block(420)] * 8 + [block(2000)] * 5  # cicha końcówka/pauza w środku
+        lst.noise.update(300)  # próg 750, w trakcie mowy 525
+    speech = [block(2000)] * 5 + [block(600)] * 8 + [block(2000)] * 5  # cicha końcówka/pauza w środku
     for b in speech + [block(100)] * 10:
         lst._q.put_nowait(b)
     utt = await lst._record(wake_t=1.0, start_timeout_s=4)

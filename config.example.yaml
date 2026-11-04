@@ -14,8 +14,8 @@ wakeword:
   threshold: 0.5
 
 vad:
-  silence_ms: 700          # ile ciszy kończy wypowiedź
-  energy_threshold: 500    # stroimy: scripts/measure.py mic
+  silence_ms: 900          # ile ciszy kończy wypowiedź
+  energy_threshold: 150    # RMS po filtrze 150 Hz; stroimy: scripts/measure.py mic
   max_record_s: 12
   no_speech_timeout_s: 4
 

@@ -67,12 +67,12 @@ class OpenWakeWord:
 @dataclass
 class VadConfig:
     silence_ms: int = 700
-    energy_threshold: float = 500.0   # minimalny próg; faktyczny rośnie z szumem tła
+    energy_threshold: float = 150.0   # minimalny próg; faktyczny rośnie z szumem tła
     max_record_s: float = 12.0
     no_speech_timeout_s: float = 4.0
-    noise_factor: float = 1.8         # mowa = głośniej niż szum tła razy tyle
+    noise_factor: float = 2.5         # mowa = głośniej niż szum tła razy tyle
     max_threshold: float = 1200.0     # próg nigdy wyżej (inaczej cichszy głos ginie w szumie)
-    hold_factor: float = 0.6          # po starcie mowy: dalej mowa, póki > próg x tyle
+    hold_factor: float = 0.7          # po starcie mowy: dalej mowa, póki > próg x tyle
 
 
 class NoiseFloor:
@@ -202,6 +202,15 @@ class MicListener:
         if require_wake:
             self.wake.reset()
             while True:
+                # Gdy Pi nie nadąża (np. obciążony procesor), kolejka rośnie i wake
+                # word działa na coraz starszym dźwięku. Ponad 2 s zaległości wyrzucamy.
+                if self._q.qsize() > int(2.0 / self.block_s):
+                    dropped = 0
+                    while self._q.qsize() > 3:
+                        self._q.get_nowait()
+                        dropped += 1
+                    log.warning("mikrofon: zaległość, wyrzucam %d bloków", dropped)
+                    self.wake.reset()
                 block = await self._block()
                 self.noise.update(self.level)
                 if self.wake.score(block) >= self.wake_threshold:

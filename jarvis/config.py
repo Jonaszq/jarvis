@@ -31,10 +31,10 @@ DEFAULTS: dict[str, Any] = {
     },
     "vad": {
         "silence_ms": 900,       # pauza w środku zdania nie może kończyć nagrania
-        "energy_threshold": 500, # RMS dla int16; stroimy pod mikrofon
-        "noise_factor": 1.8,     # próg = max(energy_threshold, szum tła x noise_factor)
+        "energy_threshold": 150, # min. próg (RMS po filtrze 150 Hz); cichy głos z drugiego końca pokoju ~150-300
+        "noise_factor": 2.5,     # próg = max(energy_threshold, szum tła x noise_factor)
         "max_threshold": 1200,   # górny limit progu
-        "hold_factor": 0.6,      # w trakcie mowy wystarczy 60% progu
+        "hold_factor": 0.7,      # w trakcie mowy wystarczy 70% progu
         "max_record_s": 12,
         "no_speech_timeout_s": 4,
     },
