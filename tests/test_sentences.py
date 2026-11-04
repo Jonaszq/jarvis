@@ -26,3 +26,10 @@ def test_markdown_stripped():
 
 def test_decimal_number_not_split():
     assert list(split_all(["Jest 2.5 stopnia. Koniec."])) == ["Jest 2.5 stopnia.", "Koniec."]
+
+
+def test_screen_only_bits_are_not_spoken():
+    from jarvis.text.sentences import split_all
+
+    out = list(split_all(["Funkcja `normalize` używa \\w. ", "Źródła: plik jarvis/commands.py. ", "Zobacz https://x.pl/a teraz."]))
+    assert out == ["Funkcja normalize używa w.", "Zobacz teraz."]

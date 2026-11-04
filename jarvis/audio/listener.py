@@ -149,7 +149,7 @@ class MicListener:
         self.clock = clock
         self.streamer = streamer
         self.noise = NoiseFloor()
-        self._hpf = HighPass(120.0, rate)
+        self._hpf = HighPass(150.0, rate)
         self.level = 0.0  # głośność ostatniego bloku (po filtrze górnoprzepustowym)
         self._preroll: collections.deque[bytes] = collections.deque(maxlen=max(1, int(preroll_s / self.block_s)))
         self._q: asyncio.Queue[bytes] = asyncio.Queue()

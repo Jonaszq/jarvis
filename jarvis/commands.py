@@ -33,13 +33,16 @@ _PHRASES: dict[str, tuple[str, ...]] = {
     WAKE: ("obudź się", "wstań", "aktywuj się", "włącz się", "pobudka", "budzimy się"),
     END: (
         "koniec", "to wszystko", "to tyle", "wystarczy", "dzięki to wszystko", "dziękuję to wszystko",
-        "spadaj", "spoko dzięki", "nic", "nieważne", "anuluj", "stop", "zamknij się", "cicho",
+        "spoko dzięki",
     ),
 }
 
 # Te kończą rozmowę tylko jako cała wypowiedź ("dzięki" tak, "dzięki, a jutro?" nie).
+# Krótkie słowa, które łatwo trafiają się w zwykłym zdaniu ("nic się nie dzieje
+# z pogodą"), też tylko jako cała wypowiedź.
 _EXACT_END = {"dzięki", "dziękuję", "dzięki wielkie", "dziękuję bardzo", "dzięki bardzo", "ok dzięki",
-              "okej dzięki", "super dzięki", "spoko", "dobra dzięki"}
+              "okej dzięki", "super dzięki", "spoko", "dobra dzięki", "nic", "nieważne", "anuluj", "stop",
+              "zamknij się", "cicho", "spadaj", "stop stop", "dobra stop", "cicho bądź"}
 
 _WAKE_PREFIX = re.compile(r"^(hej|hey|ej|ok|okej)?\s*(jarvis|dżarwis|jarwis|dżarvis)\b[\s,!.]*")
 

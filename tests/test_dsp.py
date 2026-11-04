@@ -46,13 +46,13 @@ def test_highpass_removes_infrasound_keeps_speech_band():
     t = np.arange(16000) / 16000
     rumble = (1200 * np.sqrt(2) * np.sin(2 * np.pi * 15 * t)).astype(np.int16).tobytes()
     voice = (1000 * np.sqrt(2) * np.sin(2 * np.pi * 300 * t)).astype(np.int16).tobytes()
-    hp = HighPass(120, 16000)
+    hp = HighPass(150, 16000)
     hp.level(rumble[:3200])  # rozbieg filtra
-    assert hp.level(rumble[3200:]) < 50
-    hp2 = HighPass(120, 16000)
+    assert hp.level(rumble[3200:]) < 5
+    hp2 = HighPass(150, 16000)
     hp2.level(voice[:3200])
     assert 850 < hp2.level(voice[3200:]) < 1050
-    hp3 = HighPass(120, 16000)
+    hp3 = HighPass(150, 16000)
     hp3._lfilter = None  # wersja bez scipy daje to samo
     hp3.level(voice[:3200])
     assert abs(hp3.level(voice[3200:]) - hp2.level(voice[3200:])) < 60

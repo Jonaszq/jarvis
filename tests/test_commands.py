@@ -19,3 +19,5 @@ def test_ignores_normal_questions():
     assert match("Jaka jest pogoda?") is None
     assert match("Nic mi nie mów o kalendarzu na koniec tygodnia proszę") is None
     assert match("") is None
+    assert match("Nic się nie dzieje z pogodą?") is None
+    assert match("Stop.") == "end" and match("Cicho!") == "end"

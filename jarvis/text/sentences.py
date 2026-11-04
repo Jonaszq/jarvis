@@ -56,9 +56,18 @@ class SentenceSplitter:
         return _clean(sentence)
 
 
+_URL = re.compile(r"https?://\S+|www\.\S+")
+
+
 def _clean(text: str) -> str:
-    text = text.replace("*", "").replace("#", "").replace("`", "")
-    return " ".join(text.split())
+    text = _URL.sub("", text)
+    for ch in "*#`\\_|<>[]{}":
+        text = text.replace(ch, " " if ch in "_|" else "")
+    text = " ".join(text.split())
+    # Dopisek ze źródłami ma sens na ekranie, nie w głośniku.
+    if text.lower().startswith(("źródła", "źródło", "sources")):
+        return ""
+    return text
 
 
 def split_all(chunks: Iterable[str], **kwargs) -> Iterator[str]:
