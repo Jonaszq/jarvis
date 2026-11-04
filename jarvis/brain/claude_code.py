@@ -27,8 +27,12 @@ def build_command(
     effort: str | None,
     prompt_file: Path,
     web: bool = False,
+    mcp_config: Path | None = None,
 ) -> list[str]:
     tools = "WebSearch,WebFetch" if web else ""
+    allowed = [t for t in tools.split(",") if t]
+    if mcp_config:
+        allowed.append("mcp__jarvis")  # wszystkie narzędzia serwera "jarvis" (pogoda, kalendarz, GitHub)
     cmd = [
         claude_bin,
         "-p",
@@ -43,9 +47,11 @@ def build_command(
         "--disable-slash-commands",
         "--no-session-persistence",
     ]
-    if web:
+    if mcp_config:
+        cmd += ["--mcp-config", str(mcp_config)]
+    if allowed:
         # Bez tego CLI w trybie -p odrzuca narzędzia (nie ma kogo zapytać o zgodę).
-        cmd += ["--allowedTools", tools]
+        cmd += ["--allowedTools", ",".join(allowed)]
     if effort:
         cmd += ["--effort", effort]
     return cmd

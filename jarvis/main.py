@@ -19,14 +19,32 @@ from .metrics import MetricsLog
 from .orchestrator import Orchestrator, Utterance
 
 
-def build_brain(cfg):
+def write_mcp_config(cfg) -> "Path":
+    """Konfiguracja serwera narzędzi Jarvisa dla Claude Code (bez sekretów: serwer czyta je sam)."""
+    import json
+    import os
+    from pathlib import Path
+
+    workdir = cfgmod.resolve(cfg, cfg["brain"]["workdir"])
+    workdir.mkdir(parents=True, exist_ok=True)
+    args = ["-m", "jarvis.mcp_server"]
+    cfg_path = os.environ.get("JARVIS_CONFIG")
+    if cfg_path:
+        args += ["--config", str(Path(cfg_path).expanduser().resolve())]
+    path = workdir / "jarvis-mcp.json"
+    path.write_text(json.dumps({"mcpServers": {"jarvis": {"command": sys.executable, "args": args}}}, indent=2))
+    return path
+
+
+def build_brain(cfg, context=None):
     from .brain.claude_code import ClaudeCodeBrain, build_command
 
     b = cfg["brain"]
+    mcp = write_mcp_config(cfg) if b.get("tools", True) else None
     cmd = build_command(b["claude_bin"], b["model"], b.get("effort"), cfgmod.resolve(cfg, b["prompt_file"]),
-                        web=b.get("web", True))
+                        web=b.get("web", True), mcp_config=mcp)
     return ClaudeCodeBrain(cmd, cfgmod.resolve(cfg, b["workdir"]), timeout_s=b["timeout_s"],
-                           warmup=b.get("warmup", False))
+                           warmup=b.get("warmup", False), context=context)
 
 
 log = logging.getLogger("jarvis")
@@ -165,10 +183,20 @@ class _MuteTTS:
 
 async def amain(args) -> None:
     cfgmod.load_env_file()
+    if args.config:
+        import os
+
+        os.environ["JARVIS_CONFIG"] = args.config  # ten sam config dla serwera narzędzi
     cfg = cfgmod.load(args.config)
     a = cfg["audio"]
     metrics = MetricsLog(cfgmod.resolve(cfg, cfg["metrics"]["path"]))
-    brain = build_brain(cfg)
+    day = None
+    if cfg["brain"].get("tools", True):
+        from .context import DayContext
+
+        day = DayContext(cfg)
+        day.start()
+    brain = build_brain(cfg, context=day.text if day else None)
 
     player = None
     if args.text and args.mute:
@@ -225,6 +253,8 @@ async def amain(args) -> None:
             except (asyncio.CancelledError, EOFError):
                 pass
     finally:
+        if day:
+            await day.stop()
         if bt_task:
             bt_task.cancel()
         if _EL_CLIENT is not None:

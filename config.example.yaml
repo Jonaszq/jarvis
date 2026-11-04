@@ -53,3 +53,12 @@ tts:
 
 metrics:
   path: ~/jarvis/logs/turns.jsonl
+
+skills:
+  weather: {place: Gorzów Wielkopolski, lat: 52.7368, lon: 15.2288}
+  calendar:
+    credentials: ~/.config/jarvis/google.json   # tworzy scripts/google_auth.py
+    calendar_id: primary
+  github: {user: Jonaszq, days: 14, top: 5, pinned: []}   # pinned: repo zawsze w kontekście
+  context_refresh_s: 300
+# Opcjonalnie w /etc/jarvis/env: GITHUB_TOKEN=github_pat_... (tylko odczyt), żeby widział prywatne repo.

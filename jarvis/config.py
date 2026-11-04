@@ -65,6 +65,7 @@ DEFAULTS: dict[str, Any] = {
         "reset_after_s": 300,
         "timeout_s": 45,             # max przerwa w strumieniu (szukanie w sieci trwa)
         "warmup": False,
+        "tools": True,                  # pogoda, kalendarz, GitHub (serwer MCP jarvis) + kontekst dnia
         "web": True,                    # wyszukiwanie w internecie (WebSearch/WebFetch w Claude Code)
     },
     "tts": {
@@ -73,6 +74,15 @@ DEFAULTS: dict[str, Any] = {
         "voice": "models/pl_PL-darkman-medium.onnx",
         "sample_rate": None,            # None = z pliku .onnx.json
         "mode": "auto",                 # auto | python (piper-tts) | cli (binarka piper)
+    },
+    "skills": {
+        "weather": {"place": "Gorzów Wielkopolski", "lat": 52.7368, "lon": 15.2288},
+        "calendar": {
+            "credentials": "~/.config/jarvis/google.json",   # tworzy scripts/google_auth.py
+            "calendar_id": "primary",
+        },
+        "github": {"user": "Jonaszq", "days": 14, "top": 5, "pinned": []},
+        "context_refresh_s": 300,       # co ile odświeżać kontekst dnia
     },
     "metrics": {"path": "~/jarvis/logs/turns.jsonl"},
     "sounds_dir": "sounds",
