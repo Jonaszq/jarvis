@@ -58,14 +58,29 @@ class GitHub:
         return {"repo": repo, "commits": commits, "readme": readme}
 
 
-async def _tree(gh: "GitHub", name: str) -> list[str]:
-    repo = await gh._get(f"/repos/{gh.user}/{name}")
-    data = await gh._get(f"/repos/{gh.user}/{name}/git/trees/{repo['default_branch']}", recursive="1")
-    return [t["path"] for t in data.get("tree", []) if t.get("type") == "blob"]
+async def _branch(gh: "GitHub", name: str, branch: str | None) -> str:
+    """Podana gałąź albo ta z najświeższym commitem (kod często żyje poza main)."""
+    if branch:
+        return branch
+    branches = await gh._get(f"/repos/{gh.user}/{name}/branches", per_page=30)
+    best, best_date = None, ""
+    for b in branches:
+        c = await gh._get(f"/repos/{gh.user}/{name}/commits/{b['commit']['sha']}")
+        when = c.get("commit", {}).get("committer", {}).get("date", "")
+        if when > best_date:
+            best, best_date = b["name"], when
+    return best or (await gh._get(f"/repos/{gh.user}/{name}"))["default_branch"]
 
 
-async def _file(gh: "GitHub", name: str, path: str) -> str:
-    data = await gh._get(f"/repos/{gh.user}/{name}/contents/{path}")
+async def _tree(gh: "GitHub", name: str, branch: str | None = None) -> tuple[str, list[str]]:
+    branch = await _branch(gh, name, branch)
+    data = await gh._get(f"/repos/{gh.user}/{name}/git/trees/{branch}", recursive="1")
+    return branch, [t["path"] for t in data.get("tree", []) if t.get("type") == "blob"]
+
+
+async def _file(gh: "GitHub", name: str, path: str, branch: str | None = None) -> str:
+    branch = await _branch(gh, name, branch)
+    data = await gh._get(f"/repos/{gh.user}/{name}/contents/{path}", ref=branch)
     if isinstance(data, list):
         return "To katalog: " + ", ".join(d["name"] for d in data)
     return base64.b64decode(data.get("content", "")).decode("utf-8", "replace")

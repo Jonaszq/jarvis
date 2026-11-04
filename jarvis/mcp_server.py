@@ -96,8 +96,11 @@ TOOLS = [
     },
     {
         "name": "github_tree",
-        "description": "List all file paths in one of Jonasz's GitHub repositories (default branch).",
-        "inputSchema": {"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]},
+        "description": "List all file paths in one of Jonasz's GitHub repositories. Without branch it uses the branch "
+                       "with the most recent commit (his code often lives outside main).",
+        "inputSchema": {"type": "object", "properties": {
+            "name": {"type": "string"}, "branch": {"type": "string"},
+        }, "required": ["name"]},
     },
     {
         "name": "github_file",
@@ -105,6 +108,7 @@ TOOLS = [
         "inputSchema": {"type": "object", "properties": {
             "name": {"type": "string", "description": "repository name"},
             "path": {"type": "string", "description": "file path from github_tree"},
+            "branch": {"type": "string", "description": "optional, same default as github_tree"},
         }, "required": ["name", "path"]},
     },
     {
@@ -159,11 +163,11 @@ class Tools:
                                            int(args.get("limit") or self.gh_cfg["top"]), self.gh_cfg["pinned"])
             return github.projects_summary(repos)
         if name == "github_tree":
-            paths = await self.gh.tree(args["name"])
+            branch, paths = await self.gh.tree(args["name"], args.get("branch"))
             more = f"\n... i jeszcze {len(paths) - 400} plików" if len(paths) > 400 else ""
-            return "\n".join(paths[:400]) + more
+            return f"Gałąź {branch}:\n" + "\n".join(paths[:400]) + more
         if name == "github_file":
-            text = await self.gh.file(args["name"], args["path"])
+            text = await self.gh.file(args["name"], args["path"], args.get("branch"))
             return text[:30000] + ("\n... (plik ucięty)" if len(text) > 30000 else "")
         if name == "github_repo":
             return github.details_summary(await self.gh.repo_details(args["name"]))

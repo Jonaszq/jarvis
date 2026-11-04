@@ -147,3 +147,27 @@ def test_brain_command_has_mcp(tmp_path):
     assert cmd[cmd.index("--mcp-config") + 1].endswith("m.json")
     assert cmd[cmd.index("--allowedTools") + 1] == "WebSearch,WebFetch,mcp__jarvis"
     assert "--strict-mcp-config" in cmd
+
+
+async def test_github_reads_newest_branch():
+    def h(req):
+        u = str(req.url)
+        if u.endswith("/branches?per_page=30"):
+            return httpx.Response(200, json=[{"name": "main", "commit": {"sha": "a"}},
+                                             {"name": "etap", "commit": {"sha": "b"}}])
+        if u.endswith("/commits/a"):
+            return httpx.Response(200, json={"commit": {"committer": {"date": "2026-11-01T10:00:00Z"}}})
+        if u.endswith("/commits/b"):
+            return httpx.Response(200, json={"commit": {"committer": {"date": "2026-11-04T19:00:00Z"}}})
+        if "/git/trees/etap" in u:
+            return httpx.Response(200, json={"tree": [{"path": "jarvis/commands.py", "type": "blob"},
+                                                      {"path": "jarvis", "type": "tree"}]})
+        if "/contents/jarvis/commands.py?ref=etap" in u:
+            import base64
+            return httpx.Response(200, json={"content": base64.b64encode("END = 1".encode()).decode()})
+        return httpx.Response(404)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(h)) as c:
+        gh = github.GitHub(c, "Jonaszq")
+        assert await gh.tree("jarvis") == ("etap", ["jarvis/commands.py"])
+        assert await gh.file("jarvis", "jarvis/commands.py") == "END = 1"
