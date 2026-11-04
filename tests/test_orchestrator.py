@@ -128,3 +128,29 @@ async def test_reset_after_long_silence(tmp_path):
     p["listener"].utterances = [Utterance(b"b", 16000, clock.t, clock.t)]
     await orch.run_once()
     assert p["brain"].resets == 1
+
+
+async def test_end_command_stops_followup_without_brain(tmp_path):
+    us = [Utterance(b"pytanie", 16000, 1.0, 100.0), Utterance("Dzięki, to wszystko.".encode(), 16000, None, 105.0),
+          Utterance(b"to nie powinno dojsc", 16000, None, 110.0)]
+    orch, p, _ = setup(us, tmp_path)
+    await orch.run_once()
+    assert p["brain"].asked == ["pytanie"]
+    assert p["tts"].said[-1] == "Jasne."
+    assert p["listener"].calls == [True, False]
+
+
+async def test_sleep_ignores_everything_until_wake_phrase(tmp_path):
+    orch, p, _ = setup([Utterance("Jarvis, wyłącz się.".encode(), 16000, 1.0, 100.0)], tmp_path)
+    await orch.run_once()
+    assert orch.sleeping and p["brain"].asked == []
+    said = len(p["tts"].said)
+    p["listener"].utterances = [Utterance(b"jaka jest pogoda", 16000, 2.0, 200.0)]
+    await orch.run_once()
+    assert p["brain"].asked == [] and len(p["tts"].said) == said  # cisza, zero kosztów mózgu
+    p["listener"].utterances = [Utterance("Hej Jarvis, obudź się!".encode(), 16000, 3.0, 300.0),
+                                Utterance(b"jaka jest pogoda", 16000, None, 305.0)]
+    await orch.run_once()
+    assert not orch.sleeping
+    assert p["tts"].said[said] == "Jestem."
+    assert p["brain"].asked == ["jaka jest pogoda"]

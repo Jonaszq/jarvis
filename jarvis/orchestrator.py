@@ -17,6 +17,7 @@ import time
 from dataclasses import dataclass
 from typing import Callable, Protocol
 
+from . import commands
 from .interfaces import STT, TTS, Brain, Player
 from .metrics import MetricsLog, Turn
 from .text.sentences import SentenceSplitter
@@ -64,6 +65,8 @@ class Orchestrator:
         self.reset_after_s = reset_after_s
         self.clock = clock
         self.state = "czuwanie"
+        self.sleeping = False          # po "wyłącz się": czeka tylko na "obudź się"
+        self._end_conversation = False
         self._last_turn_t: float | None = None
 
     async def start(self) -> None:
@@ -83,10 +86,13 @@ class Orchestrator:
 
     async def run_once(self) -> None:
         """Jedna rozmowa: wake word, pytanie, a potem dopytania bez wake worda."""
-        self.state = "czuwanie"
+        self.state = "uśpiony" if self.sleeping else "czuwanie"
         utterance = await self.listener.next_utterance(require_wake=True, timeout_s=None)
         while utterance is not None:
+            self._end_conversation = False
             await self.handle(utterance)
+            if self._end_conversation or self.sleeping:
+                return
             self.state = "dopytanie"
             utterance = await self.listener.next_utterance(
                 require_wake=False, timeout_s=self.followup_s
@@ -125,6 +131,16 @@ class Orchestrator:
         turn.mark("transcript")
         turn.info["heard"] = text
         log.info("usłyszałem: %r", text)
+        command = commands.match(text)
+        if self.sleeping:
+            if command != commands.WAKE:
+                turn.info["ignored_sleeping"] = True  # śpi: bez odpowiedzi i bez kosztów
+                self._end_conversation = True
+                return
+        if command:
+            turn.info["command"] = command
+            await self._command(command, turn)
+            return
         if not text:
             turn.info["empty"] = True
             await self.player.play_sound("nie_slysze")
@@ -154,6 +170,26 @@ class Orchestrator:
             await sentences.put(None)
             turn.info["answer"] = "".join(answer).strip()
             await speaker
+
+    async def _command(self, command: str, turn: Turn) -> None:
+        if command == commands.END:
+            self._end_conversation = True
+            await self._say("Jasne.", turn)
+        elif command == commands.SLEEP:
+            self.sleeping = True
+            self._end_conversation = True
+            log.info("uśpiony")
+            await self._say("Dobra, wyłączam się. Obudzisz mnie słowami: hey Jarvis, obudź się.", turn)
+        elif command == commands.WAKE:
+            was_sleeping, self.sleeping = self.sleeping, False
+            log.info("obudzony")
+            await self._say("Jestem." if was_sleeping else "Przecież nie śpię.", turn)
+
+    async def _say(self, text: str, turn: Turn) -> None:
+        queue: asyncio.Queue[str | None] = asyncio.Queue()
+        await queue.put(text)
+        await queue.put(None)
+        await self._speak(queue, turn)
 
     async def _speak(self, sentences: asyncio.Queue[str | None], turn: Turn) -> None:
         while (sentence := await sentences.get()) is not None:
