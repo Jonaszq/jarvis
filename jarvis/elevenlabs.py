@@ -65,6 +65,7 @@ class ElevenLabsClient:
         self.quota_switch = quota_switch
         self.usage_refresh_s = usage_refresh_s
         self.usage: tuple[int, int] | None = None  # (zużyte, limit) kredytów
+        self.reset_unix: int | None = None         # kiedy limit się odnawia
         self._usage_t = 0.0
         self._started = False
 
@@ -85,6 +86,7 @@ class ElevenLabsClient:
             if r.status_code == 200:
                 data = r.json()
                 self.usage = (int(data.get("character_count", 0)), int(data.get("character_limit", 0)))
+                self.reset_unix = data.get("next_character_count_reset_unix")
                 log.info("ElevenLabs: zużyte %d z %d kredytów", *self.usage)
             else:
                 log.info("ElevenLabs: nie mogę odczytać limitu (%s)", r.status_code)

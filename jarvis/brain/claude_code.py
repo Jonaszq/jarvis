@@ -77,11 +77,13 @@ class ClaudeCodeBrain:
         timeout_s: float = 30.0,
         warmup: bool = False,
         context: Callable[[], str] | None = None,
+        on_result: Callable[[dict], None] | None = None,
     ):
         self.command = command
         self.workdir = Path(workdir).expanduser()
         self.timeout_s = timeout_s
         self.warmup = warmup
+        self.on_result = on_result  # np. zapis zużycia limitu
         self.context = context  # etap 4a: "kontekst dnia" doklejany do pytania
         self._proc: asyncio.subprocess.Process | None = None
         self._spawning: asyncio.Task | None = None
@@ -196,6 +198,11 @@ class ClaudeCodeBrain:
                             streamed = True
                             yield full
                     elif kind == "result":
+                        if self.on_result:
+                            try:
+                                self.on_result(event)
+                            except Exception:
+                                log.exception("zapis zużycia")
                         if event.get("is_error") or event.get("subtype") not in (None, "success"):
                             raise BrainError(f"błąd mózgu: {event.get('result') or event.get('subtype')}")
                         if not streamed and event.get("result"):

@@ -19,6 +19,7 @@ END = "end"
 SLEEP = "sleep"
 WAKE = "wake"
 FORGET = "forget"
+USAGE = "usage"
 
 MAX_WORDS = 6
 
@@ -28,6 +29,8 @@ _PHRASES: dict[str, tuple[str, ...]] = {
         "idź spać", "śpij", "uśpij się", "zaśnij", "wycisz się", "nie przeszkadzaj",
         "tryb uśpienia", "przestań słuchać",
     ),
+    USAGE: ("ile limitu", "zużyłeś limitu", "zużyłeś mi limitu", "zużycie limitu", "stan limitu", "zostało limitu",
+            "ile zjadłeś", "ile zeżarłeś", "ile zużyłeś", "jaki mam limit", "ile mam limitu", "sprawdź limit"),
     FORGET: ("zapomnij to", "zapomnij o tym", "zapomnij tamto", "nie zapisuj tego", "usuń to z dziennika",
              "wymaż to", "skasuj ostatni wpis", "usuń ostatni wpis"),
     WAKE: ("obudź się", "obudz się", "wstań", "wstawaj", "aktywuj się", "włącz się", "pobudka", "budzimy się",
@@ -67,12 +70,15 @@ def match(text: str) -> str | None:
 
 def _match_one(text: str) -> str | None:
     norm = normalize(text)
-    if not norm or len(norm.split()) > MAX_WORDS:
+    if not norm or len(norm.split()) > MAX_WORDS + 4:
         return None
+    if len(norm.split()) > MAX_WORDS:  # dłuższe pytanie o limit ("ile zużyłeś mi limitu w tej sesji")
+        padded = f" {norm} "
+        return USAGE if any(f" {p} " in padded for p in _PHRASES[USAGE]) else None
     if norm in _EXACT_END:
         return END
     padded = f" {norm} "
-    for command in (FORGET, SLEEP, WAKE, END):  # SLEEP przed END: "stop, wyłącz się" ma uśpić
+    for command in (USAGE, FORGET, SLEEP, WAKE, END):  # SLEEP przed END: "stop, wyłącz się" ma uśpić
         for phrase in _PHRASES[command]:
             # Jedno słowo ("koniec", "śpij") tylko jako cała wypowiedź: "pogoda na
             # koniec tygodnia" nie może kończyć rozmowy.

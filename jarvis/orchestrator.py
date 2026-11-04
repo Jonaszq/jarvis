@@ -66,6 +66,7 @@ class Orchestrator:
         clock: Callable[[], float] = time.monotonic,
         journal=None,
         max_sentences: int = 5,
+        usage_report=None,
     ):
         self.listener = listener
         self.stt = stt
@@ -77,6 +78,7 @@ class Orchestrator:
         self.reset_after_s = reset_after_s
         self.clock = clock
         self.journal = journal
+        self.usage_report = usage_report  # () -> str
         # Twardy limit: Haiku potrafi mimo promptu napisać minutę mowy.
         # Po limicie pytamy "mówić dalej?", a resztę trzymamy na "tak".
         self.max_sentences = max_sentences
@@ -233,6 +235,9 @@ class Orchestrator:
             self._end_conversation = True
             log.info("uśpiony")
             await self._say("Dobra, wyłączam się. Żeby mnie obudzić, po prostu zawołaj: hey Jarvis.", turn)
+        elif command == commands.USAGE:
+            text = self.usage_report() if self.usage_report else "Nie liczę jeszcze zużycia limitu."
+            await self._say(text, turn)
         elif command == commands.FORGET:
             removed = self.journal.forget_last() if self.journal else None
             log.info("dziennik: zapomniane %r", removed)

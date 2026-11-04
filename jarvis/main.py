@@ -36,7 +36,7 @@ def write_mcp_config(cfg) -> "Path":
     return path
 
 
-def build_brain(cfg, context=None):
+def build_brain(cfg, context=None, on_result=None):
     from .brain.claude_code import ClaudeCodeBrain, build_command
 
     b = cfg["brain"]
@@ -44,7 +44,7 @@ def build_brain(cfg, context=None):
     cmd = build_command(b["claude_bin"], b["model"], b.get("effort"), cfgmod.resolve(cfg, b["prompt_file"]),
                         web=b.get("web", True), mcp_config=mcp)
     return ClaudeCodeBrain(cmd, cfgmod.resolve(cfg, b["workdir"]), timeout_s=b["timeout_s"],
-                           warmup=b.get("warmup", False), context=context)
+                           warmup=b.get("warmup", False), context=context, on_result=on_result)
 
 
 log = logging.getLogger("jarvis")
@@ -226,7 +226,13 @@ async def amain(args) -> None:
         day = DayContext(cfg)
         day.start()
     journal, summary_task = _journal(cfg)
-    brain = build_brain(cfg, context=day.text if day else None)
+    from .usage import UsageLog, report
+
+    usage_log = UsageLog(cfgmod.resolve(cfg, cfg["usage"]["path"]))
+    brain = build_brain(cfg, context=day.text if day else None, on_result=usage_log.add_result)
+
+    def usage_report():
+        return report(usage_log, tuple(cfg["usage"]["claude_bands"]))
 
     player = None
     if args.text and args.mute:
@@ -265,7 +271,7 @@ async def amain(args) -> None:
 
     orch = Orchestrator(listener, stt, brain, tts, player, metrics,
                         followup_s=cfg["followup_s"], reset_after_s=cfg["brain"]["reset_after_s"], journal=journal,
-                        max_sentences=cfg.get("max_spoken_sentences", 5))
+                        max_sentences=cfg.get("max_spoken_sentences", 5), usage_report=usage_report)
     stop = asyncio.Event()
     for sig in (signal.SIGTERM, signal.SIGINT):
         try:

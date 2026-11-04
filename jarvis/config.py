@@ -86,6 +86,10 @@ DEFAULTS: dict[str, Any] = {
         "journal": {"dir": "~/jarvis/journal", "summary_at": "23:00"},   # lokalnie, nigdy w repo
         "context_refresh_s": 300,       # co ile odświeżać kontekst dnia
     },
+    "usage": {
+        "path": "~/jarvis/logs/usage.jsonl",
+        "claude_bands": [0.5, 2.0],      # $ równowartości / 5 h: poniżej = małe, między = średnie, powyżej = duże
+    },
     "metrics": {"path": "~/jarvis/logs/turns.jsonl"},
     "sounds_dir": "sounds",
 }
