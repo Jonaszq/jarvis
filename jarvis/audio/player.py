@@ -52,8 +52,11 @@ class SoundDevicePlayer:
             self._sounds[name] = load_sound(name, self.sounds_dir, self.rate)
         self._thread.start()
 
-    def stop(self) -> None:
+    def stop(self, timeout: float = 5.0) -> None:
+        """Kończy po dograniu kolejki; zamknięcie strumienia dogrywa też bufor karty."""
         self._stop.set()
+        if self._thread.is_alive():
+            self._thread.join(timeout)
 
     async def play(self, pcm: bytes, sample_rate: int) -> None:
         if sample_rate != self.rate:
@@ -79,7 +82,7 @@ class SoundDevicePlayer:
         silence = bytes(self.block * 2)
         with sd.RawOutputStream(samplerate=self.rate, channels=1, dtype="int16",
                                 device=self.device, blocksize=self.block) as stream:
-            while not self._stop.is_set():
+            while not (self._stop.is_set() and self._q.empty()):
                 try:
                     pcm = self._q.get(timeout=0.02)
                 except queue.Empty:

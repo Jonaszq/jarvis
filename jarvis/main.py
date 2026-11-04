@@ -148,15 +148,21 @@ async def amain(args) -> None:
         except NotImplementedError:
             pass
     task = asyncio.create_task(orch.run())
-    done, _ = await asyncio.wait({task, asyncio.create_task(stop.wait())}, return_when=asyncio.FIRST_COMPLETED)
-    if task in done:
-        task.result()
-    else:
-        task.cancel()
-        try:
-            await task
-        except (asyncio.CancelledError, EOFError):
-            pass
+    try:
+        done, _ = await asyncio.wait({task, asyncio.create_task(stop.wait())}, return_when=asyncio.FIRST_COMPLETED)
+        if task in done:
+            task.result()
+        else:
+            task.cancel()
+            try:
+                await task
+            except (asyncio.CancelledError, EOFError):
+                pass
+    finally:
+        # Bez tego program kończył się, zanim głośnik dograł ostatnie zdanie.
+        if hasattr(player, "stop"):
+            await player.drain()
+            await asyncio.get_running_loop().run_in_executor(None, player.stop)
 
 
 def run() -> None:
