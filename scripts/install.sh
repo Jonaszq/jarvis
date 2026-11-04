@@ -71,6 +71,13 @@ if [ ! -f /etc/jarvis/env ]; then
   echo "Utworzono pusty /etc/jarvis/env (klucze API wpiszesz tam później)."
 fi
 
+step "Bluetooth: głośnik tylko jako głośnik (bez mikrofonu JBL)"
+mkdir -p "$HOME/.config/wireplumber/wireplumber.conf.d"
+if ! cmp -s config/51-jarvis-bluetooth.conf "$HOME/.config/wireplumber/wireplumber.conf.d/51-jarvis-bluetooth.conf"; then
+  cp config/51-jarvis-bluetooth.conf "$HOME/.config/wireplumber/wireplumber.conf.d/"
+  systemctl --user restart wireplumber && echo "WirePlumber zrestartowany (głośnik połączy się ponownie)"
+fi
+
 step "Wi-Fi bez oszczędzania energii (mniejsze opóźnienia sieci)"
 if command -v nmcli >/dev/null; then
   CONN=$(nmcli -t -f NAME,TYPE connection show --active | awk -F: '$2=="802-11-wireless"{print $1; exit}')
