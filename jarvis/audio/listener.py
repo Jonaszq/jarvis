@@ -67,9 +67,32 @@ class OpenWakeWord:
 @dataclass
 class VadConfig:
     silence_ms: int = 700
-    energy_threshold: float = 500.0
+    energy_threshold: float = 500.0   # minimalny próg; faktyczny rośnie z szumem tła
     max_record_s: float = 12.0
     no_speech_timeout_s: float = 4.0
+    noise_factor: float = 2.5         # mowa = głośniej niż szum tła razy tyle
+
+
+class NoiseFloor:
+    """Bieżący poziom szumu tła (RMS), liczony w czasie czekania na wake word.
+
+    Stały próg zawodzi, gdy szum się zmienia (np. syk z wyjścia audio Pi
+    przez kabel): szum ciągle "brzmi jak mowa" i nagrywanie trwa do limitu.
+    """
+
+    def __init__(self, initial: float = 200.0, alpha: float = 0.02):
+        self.level = initial
+        self.alpha = alpha
+
+    def update(self, level: float) -> None:
+        # Głośne bloki (mowa) prawie nie podnoszą szumu; ciche obniżają szybko.
+        if level < self.level:
+            self.level += 0.2 * (level - self.level)
+        elif level < self.level * 3:
+            self.level += self.alpha * (level - self.level)
+
+    def threshold(self, vad: "VadConfig") -> float:
+        return max(vad.energy_threshold, self.level * vad.noise_factor)
 
 
 def find_input_device(name: str | None) -> tuple[int | None, int]:
@@ -112,6 +135,7 @@ class MicListener:
         self.vad = vad or VadConfig()
         self.on_wake = on_wake
         self.clock = clock
+        self.noise = NoiseFloor()
         self._preroll: collections.deque[bytes] = collections.deque(maxlen=max(1, int(preroll_s / self.block_s)))
         self._q: asyncio.Queue[bytes] = asyncio.Queue()
         self._stream = None
@@ -162,7 +186,9 @@ class MicListener:
         if require_wake:
             self.wake.reset()
             while True:
-                if self.wake.score(await self._block()) >= self.wake_threshold:
+                block = await self._block()
+                self.noise.update(rms(block))
+                if self.wake.score(block) >= self.wake_threshold:
                     wake_t = self.clock()
                     log.info("wake word")
                     if self.on_wake:
@@ -175,6 +201,8 @@ class MicListener:
         silence_blocks = int(self.vad.silence_ms / 1000 / self.block_s)
         max_blocks = int(self.vad.max_record_s / self.block_s)
         start_blocks = int((start_timeout_s or self.vad.no_speech_timeout_s) / self.block_s)
+        threshold = self.noise.threshold(self.vad)
+        log.info("próg mowy %.0f (szum tła %.0f)", threshold, self.noise.level)
         heard = False
         quiet = 0
         n = 0
@@ -182,7 +210,7 @@ class MicListener:
             block = await self._block()
             frames.append(block)
             n += 1
-            loud = rms(block) >= self.vad.energy_threshold
+            loud = rms(block) >= threshold
             if loud:
                 heard = True
                 quiet = 0

@@ -185,7 +185,8 @@ async def amain(args) -> None:
             OpenWakeWord(w["model"]), device=a["input_device"], input_rate=a["input_rate"],
             rate=a["rate"], block_ms=a["block_ms"], preroll_s=a["preroll_s"],
             wake_threshold=w["threshold"],
-            vad=VadConfig(v["silence_ms"], v["energy_threshold"], v["max_record_s"], v["no_speech_timeout_s"]),
+            vad=VadConfig(v["silence_ms"], v["energy_threshold"], v["max_record_s"], v["no_speech_timeout_s"],
+                          v.get("noise_factor", 2.5)),
             on_wake=lambda: asyncio.ensure_future(player.play_sound("ding")),
         )
         listener.start(loop)

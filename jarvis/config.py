@@ -32,6 +32,7 @@ DEFAULTS: dict[str, Any] = {
     "vad": {
         "silence_ms": 700,       # etap 1: prosty próg energii; Silero w etapie 4
         "energy_threshold": 500, # RMS dla int16; stroimy pod mikrofon
+        "noise_factor": 2.5,     # próg = max(energy_threshold, szum tła x noise_factor)
         "max_record_s": 12,
         "no_speech_timeout_s": 4,
     },
