@@ -1,0 +1,47 @@
+# Skopiuj do config.yaml i dopasuj. config.yaml nie trafia do repo.
+# Sekrety (klucze API) NIE tutaj, tylko w /etc/jarvis/env.
+
+audio:
+  input_device: "USB PnP Audio Device"   # fragment nazwy z `python -m sounddevice`
+  input_rate: null                       # null = natywna częstotliwość mikrofonu
+  preroll_s: 1.0
+  output_device: null                    # null = domyślne wyjście (JBL)
+  output_rate: 22050
+
+wakeword:
+  model: hey_jarvis
+  threshold: 0.5
+
+vad:
+  silence_ms: 700          # ile ciszy kończy wypowiedź
+  energy_threshold: 500    # stroimy: scripts/measure.py mic
+  max_record_s: 12
+  no_speech_timeout_s: 4
+
+followup_s: 5
+
+stt:
+  engine: whisper_local
+  whisper_cli: ~/whisper.cpp/build/bin/whisper-cli
+  whisper_model: ~/whisper.cpp/models/ggml-base.bin
+  language: pl
+  threads: 4
+
+brain:
+  engine: claude_code
+  claude_bin: claude
+  model: haiku
+  effort: low
+  prompt_file: brain/jarvis_prompt.md
+  workdir: ~/.jarvis-brain
+  reset_after_s: 300
+  warmup: false
+
+tts:
+  engine: piper_local
+  piper_bin: piper
+  voice: ~/piper/voices/pl_PL-gosia-medium.onnx
+  mode: auto
+
+metrics:
+  path: ~/jarvis/logs/turns.jsonl
