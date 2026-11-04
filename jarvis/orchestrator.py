@@ -84,7 +84,6 @@ class Orchestrator:
         self.state = "czuwanie"
         self.sleeping = False          # po "wyłącz się": czeka tylko na "obudź się"
         self._end_conversation = False
-        self._sleep_hint_given = False
         self._last_turn_t: float | None = None
 
     async def start(self) -> None:
@@ -165,16 +164,14 @@ class Orchestrator:
                 await self._speak_limited(more, turn)
                 return
         command = commands.match(text)
-        if self.sleeping:
-            if command != commands.WAKE:
+        if self.sleeping and command != commands.WAKE:
+            # Samo zawołanie ("hey Jarvis", "Jarvis?") budzi: tak ludzie wołają.
+            # Dłuższe wypowiedzi (telewizor, rozmowa obok) dalej są ignorowane.
+            short = len(commands.normalize(text).split()) <= 3
+            if utterance.wake_t is not None and short:
+                command = commands.WAKE
+            else:
                 turn.info["ignored_sleeping"] = True  # śpi: bez mózgu i bez kosztów
-                short = len(commands.normalize(text).split()) <= 3  # samo wołanie, a nie pytanie
-                if utterance.wake_t is not None and short and not self._sleep_hint_given:
-                    # Ktoś woła "hey Jarvis" i czeka: raz podpowiadamy i słuchamy
-                    # dalej, żeby samo "obudź się" w dopytaniu zadziałało.
-                    self._sleep_hint_given = True
-                    await self._say("Śpię. Żeby mnie obudzić, powiedz: obudź się.", turn)
-                    return
                 self._end_conversation = True
                 return
         if command:
@@ -233,17 +230,15 @@ class Orchestrator:
             await self._say("Jasne.", turn)
         elif command == commands.SLEEP:
             self.sleeping = True
-            self._sleep_hint_given = False
             self._end_conversation = True
             log.info("uśpiony")
-            await self._say("Dobra, wyłączam się. Obudzisz mnie słowami: hey Jarvis, obudź się.", turn)
+            await self._say("Dobra, wyłączam się. Żeby mnie obudzić, po prostu zawołaj: hey Jarvis.", turn)
         elif command == commands.FORGET:
             removed = self.journal.forget_last() if self.journal else None
             log.info("dziennik: zapomniane %r", removed)
             await self._say("Jasne, zapomniałem." if removed else "Dziś nie mam nic zapisanego w dzienniku.", turn)
         elif command == commands.WAKE:
             was_sleeping, self.sleeping = self.sleeping, False
-            self._sleep_hint_given = False
             log.info("obudzony")
             await self._say("Jestem." if was_sleeping else "Przecież nie śpię.", turn)
 

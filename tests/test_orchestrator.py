@@ -202,21 +202,18 @@ async def test_held_back_dropped_on_new_question(tmp_path):
     assert parts["brain"].asked == ["opowiedz", "a pogoda"]
 
 
-async def test_sleeping_hint_then_wake_in_followup(tmp_path):
-    utts = [Utterance(b"Jaroslaw", 16000, 1.0, 1.0), Utterance("obudź się".encode(), 16000, None, 2.0)]
+async def test_sleeping_bare_call_wakes(tmp_path):
+    utts = [Utterance("Hej, Jarvis.".encode(), 16000, 1.0, 1.0), Utterance(b"jaka pogoda", 16000, None, 2.0)]
     orch, parts, clock = setup(utts, tmp_path)
     orch.sleeping = True
     await orch.run_once()
-    assert parts["tts"].said == ["Śpię. Żeby mnie obudzić, powiedz: obudź się.", "Jestem."]
-    assert not orch.sleeping and parts["brain"].asked == []
+    assert parts["tts"].said[0] == "Jestem."
+    assert not orch.sleeping and parts["brain"].asked == ["jaka pogoda"]
 
 
-async def test_sleeping_hint_only_once(tmp_path):
-    utts = [Utterance(b"Jarvis", 16000, 1.0, 1.0), Utterance(b"halo", 16000, None, 2.0)]
+async def test_sleeping_ignores_long_talk(tmp_path):
+    utts = [Utterance("no i wtedy Jarvis powiedział że pada".encode(), 16000, 1.0, 1.0)]
     orch, parts, clock = setup(utts, tmp_path)
     orch.sleeping = True
     await orch.run_once()
-    orch.listener.utterances = [Utterance(b"Jarvis", 16000, 1.0, 3.0)]
-    await orch.run_once()
-    assert parts["tts"].said == ["Śpię. Żeby mnie obudzić, powiedz: obudź się."]
-    assert orch.sleeping
+    assert orch.sleeping and parts["tts"].said == [] and parts["brain"].asked == []

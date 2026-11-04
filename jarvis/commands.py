@@ -2,7 +2,7 @@
 
 - END:   kończy rozmowę, Jarvis wraca do czekania na "hey Jarvis"
 - SLEEP: usypia Jarvisa; ignoruje wszystko, dopóki nie usłyszy
-         "hey Jarvis, obudź się"
+         "obudź się" (albo samo zawołanie "hey Jarvis")
 - WAKE:  budzi z uśpienia
 - FORGET: "zapomnij to" usuwa ostatni wpis z dziennika
 
@@ -45,7 +45,7 @@ _EXACT_END = {"dzięki", "dziękuję", "dzięki wielkie", "dziękuję bardzo", "
               "zamknij się", "cicho", "spadaj", "stop stop", "dobra stop", "cicho bądź", "to tyle", "wystarczy",
               "dobra wystarczy", "to tyle dzięki"}
 
-_WAKE_PREFIX = re.compile(r"^(hej|hey|ej|ok|okej)?\s*(jarvis|dżarwis|jarwis|dżarvis)\b[\s,!.]*")
+_WAKE_PREFIX = re.compile(r"^(hej|hey|ej|ok|okej)?\s*(jarvis|dżarwis|jarwis|dżarvis|darwis|darwiś|arwiś|dariusz)\b[\s,!.]*")
 
 
 def normalize(text: str) -> str:
@@ -56,6 +56,16 @@ def normalize(text: str) -> str:
 
 
 def match(text: str) -> str | None:
+    found = _match_one(text)
+    if found is None:
+        # "To jest bez sensu. Hej Jarvis, idź spać." – komenda w ostatnim zdaniu.
+        parts = [p for p in re.split(r"[.!?]+", text) if p.strip()]
+        if len(parts) > 1:
+            found = _match_one(parts[-1])
+    return found
+
+
+def _match_one(text: str) -> str | None:
     norm = normalize(text)
     if not norm or len(norm.split()) > MAX_WORDS:
         return None
