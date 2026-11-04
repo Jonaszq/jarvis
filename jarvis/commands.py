@@ -30,7 +30,8 @@ _PHRASES: dict[str, tuple[str, ...]] = {
     ),
     FORGET: ("zapomnij to", "zapomnij o tym", "zapomnij tamto", "nie zapisuj tego", "usuń to z dziennika",
              "wymaż to", "skasuj ostatni wpis", "usuń ostatni wpis"),
-    WAKE: ("obudź się", "wstań", "aktywuj się", "włącz się", "pobudka", "budzimy się"),
+    WAKE: ("obudź się", "obudz się", "wstań", "wstawaj", "aktywuj się", "włącz się", "pobudka", "budzimy się",
+           "jesteś tam", "budź się", "obudź"),
     END: (
         "koniec", "to wszystko", "dzięki to wszystko", "dziękuję to wszystko", "na tym koniec", "koniec rozmowy",
     ),

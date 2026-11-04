@@ -26,7 +26,7 @@ DEFAULTS: dict[str, Any] = {
     },
     "wakeword": {
         "model": "hey_jarvis",
-        "threshold": 0.5,
+        "threshold": 0.4,             # 0,5 gubił cichsze "hey Jarvis" (wynik 0,47)
         "cooldown_s": 1.5,
     },
     "vad": {
