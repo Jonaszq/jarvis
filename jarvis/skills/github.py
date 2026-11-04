@@ -58,6 +58,23 @@ class GitHub:
         return {"repo": repo, "commits": commits, "readme": readme}
 
 
+async def _tree(gh: "GitHub", name: str) -> list[str]:
+    repo = await gh._get(f"/repos/{gh.user}/{name}")
+    data = await gh._get(f"/repos/{gh.user}/{name}/git/trees/{repo['default_branch']}", recursive="1")
+    return [t["path"] for t in data.get("tree", []) if t.get("type") == "blob"]
+
+
+async def _file(gh: "GitHub", name: str, path: str) -> str:
+    data = await gh._get(f"/repos/{gh.user}/{name}/contents/{path}")
+    if isinstance(data, list):
+        return "To katalog: " + ", ".join(d["name"] for d in data)
+    return base64.b64decode(data.get("content", "")).decode("utf-8", "replace")
+
+
+GitHub.tree = _tree
+GitHub.file = _file
+
+
 def ago(iso: str | None) -> str:
     if not iso:
         return "?"

@@ -170,3 +170,11 @@ async def test_forget_command_uses_journal(tmp_path):
     await orch.run_once()
     assert j.entries(datetime(2026, 11, 4).date()) == [] and brain.asked == []
     assert tts.said == ["Jasne, zapomniałem."]
+
+
+async def test_empty_transcript_ends_conversation(tmp_path):
+    utts = [Utterance(b"", 16000, 1.0, 1.0), Utterance(b"pytanie", 16000, None, 2.0)]
+    orch, parts, clock = setup(utts, tmp_path)
+    await orch.run_once()
+    assert parts["listener"].calls == [True]  # bez dopytania po pustej turze
+    assert parts["player"].sounds == ["nie_slysze"]

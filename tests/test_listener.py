@@ -95,3 +95,19 @@ async def test_quiet_word_endings_do_not_cut_recording():
         lst._q.put_nowait(b)
     utt = await lst._record(wake_t=1.0, start_timeout_s=4)
     assert len(utt.audio) >= len(b"".join(speech))  # druga część zdania nie ucięta
+
+
+def test_noise_floor_never_zero():
+    nf = NoiseFloor(initial=200)
+    for _ in range(500):
+        nf.update(0)
+    assert nf.level >= 30
+
+
+def test_noise_floor_recovers_from_digital_silence():
+    nf = NoiseFloor(initial=200)
+    for _ in range(200):
+        nf.update(0)
+    for _ in range(200):
+        nf.update(540)  # syk po ciszy: to szum, nie mowa
+    assert 500 < nf.level < 560

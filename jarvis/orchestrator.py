@@ -155,6 +155,9 @@ class Orchestrator:
             return
         if not text:
             turn.info["empty"] = True
+            # Koniec rozmowy: inaczej szum (albo nasz własny dźwięk) otwierał
+            # kolejne dopytanie i tak w kółko co kilka sekund.
+            self._end_conversation = True
             await self.player.play_sound("nie_slysze")
             return
 

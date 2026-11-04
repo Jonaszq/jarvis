@@ -82,16 +82,25 @@ class NoiseFloor:
     przez kabel): szum ciągle "brzmi jak mowa" i nagrywanie trwa do limitu.
     """
 
-    def __init__(self, initial: float = 200.0, alpha: float = 0.02):
-        self.level = initial
-        self.alpha = alpha
+    MIN_LEVEL = 30.0  # cyfrowa cisza (rms 0) nie może zbić szumu do zera
+
+    def __init__(self, initial: float = 200.0, window: int = 125, quantile: float = 0.2):
+        # Szum = 20. percentyl głośności z ostatnich ~10 s (125 bloków po 80 ms).
+        # Mowa ma przerwy, więc jej nie podbija; stały syk tak, nawet gdy
+        # wcześniej była zupełna cisza (stara wersja wtedy brała syk za mowę).
+        self.initial = initial
+        self.window: collections.deque[float] = collections.deque(maxlen=window)
+        self.quantile = quantile
+
+    @property
+    def level(self) -> float:
+        if len(self.window) < 10:
+            return self.initial
+        ordered = sorted(self.window)
+        return max(self.MIN_LEVEL, ordered[int(len(ordered) * self.quantile)])
 
     def update(self, level: float) -> None:
-        # Głośne bloki (mowa) prawie nie podnoszą szumu; ciche obniżają szybko.
-        if level < self.level:
-            self.level += 0.2 * (level - self.level)
-        elif level < self.level * 3:
-            self.level += self.alpha * (level - self.level)
+        self.window.append(level)
 
     def threshold(self, vad: "VadConfig") -> float:
         return max(vad.energy_threshold, min(vad.max_threshold, self.level * vad.noise_factor))

@@ -95,6 +95,19 @@ TOOLS = [
         }},
     },
     {
+        "name": "github_tree",
+        "description": "List all file paths in one of Jonasz's GitHub repositories (default branch).",
+        "inputSchema": {"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]},
+    },
+    {
+        "name": "github_file",
+        "description": "Read one file from one of Jonasz's GitHub repositories, e.g. to review code or explain it by voice.",
+        "inputSchema": {"type": "object", "properties": {
+            "name": {"type": "string", "description": "repository name"},
+            "path": {"type": "string", "description": "file path from github_tree"},
+        }, "required": ["name", "path"]},
+    },
+    {
         "name": "github_repo",
         "description": "Details of one of Jonasz's GitHub repositories: description, last commits, README start.",
         "inputSchema": {"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]},
@@ -145,6 +158,13 @@ class Tools:
             repos = await self.gh.projects(int(args.get("days") or self.gh_cfg["days"]),
                                            int(args.get("limit") or self.gh_cfg["top"]), self.gh_cfg["pinned"])
             return github.projects_summary(repos)
+        if name == "github_tree":
+            paths = await self.gh.tree(args["name"])
+            more = f"\n... i jeszcze {len(paths) - 400} plików" if len(paths) > 400 else ""
+            return "\n".join(paths[:400]) + more
+        if name == "github_file":
+            text = await self.gh.file(args["name"], args["path"])
+            return text[:30000] + ("\n... (plik ucięty)" if len(text) > 30000 else "")
         if name == "github_repo":
             return github.details_summary(await self.gh.repo_details(args["name"]))
         raise ValueError(f"nieznane narzędzie {name}")
