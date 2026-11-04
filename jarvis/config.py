@@ -56,7 +56,7 @@ DEFAULTS: dict[str, Any] = {
     "tts": {
         "engine": "piper_local",
         "piper_bin": ".venv/bin/piper",
-        "voice": "models/pl_PL-gosia-medium.onnx",
+        "voice": "models/pl_PL-darkman-medium.onnx",
         "sample_rate": None,            # None = z pliku .onnx.json
         "mode": "auto",                 # auto | python (piper-tts) | cli (binarka piper)
     },

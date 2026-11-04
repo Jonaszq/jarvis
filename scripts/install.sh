@@ -7,8 +7,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT="$PWD"
 VOICE_DIR="$ROOT/models"
-VOICE="pl_PL-gosia-medium"
-VOICE_URL="https://huggingface.co/rhasspy/piper-voices/resolve/main/pl/pl_PL/gosia/medium"
+VOICE="pl_PL-darkman-medium"
+VOICE_URL="https://huggingface.co/rhasspy/piper-voices/resolve/main/pl/pl_PL/darkman/medium"
 WHISPER_MODEL="$HOME/whisper.cpp/models/ggml-base.bin"
 WHISPER_URL="https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin"
 
