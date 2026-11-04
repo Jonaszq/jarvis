@@ -7,7 +7,7 @@ audio:
   preroll_s: 1.0
   output_device: null                    # null = domyślne wyjście (JBL)
   output_rate: 22050
-  bt_speaker: "70:99:1C:47:E0:1B"         # JBL Clip 3; Jarvis sam łączy go ponownie
+  bt_speaker: null                       # MAC głośnika BT (np. JBL "70:99:1C:47:E0:1B"), gdy gra przez Bluetooth; przy kablu audio: null
 
 wakeword:
   model: hey_jarvis
