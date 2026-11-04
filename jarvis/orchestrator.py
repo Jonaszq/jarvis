@@ -236,7 +236,7 @@ class Orchestrator:
             log.info("uśpiony")
             await self._say("Dobra, wyłączam się. Żeby mnie obudzić, po prostu zawołaj: hey Jarvis.", turn)
         elif command == commands.USAGE:
-            text = self.usage_report() if self.usage_report else "Nie liczę jeszcze zużycia limitu."
+            text = await self.usage_report() if self.usage_report else "Nie liczę jeszcze zużycia limitu."
             await self._say(text, turn)
         elif command == commands.FORGET:
             removed = self.journal.forget_last() if self.journal else None

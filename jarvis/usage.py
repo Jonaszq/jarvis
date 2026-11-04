@@ -75,3 +75,46 @@ def report(log: UsageLog, claude_bands=(0.5, 2.0), hours: float = 5.0) -> str:
     level = band(w["cost"], claude_bands, ("małe", "średnie", "duże"))
     return (f"W ostatnich {int(hours)} godzinach odpowiedziałem {w['answers']} razy. Zużycie limitu Claude: {level}, "
             f"około {w['tokens'] // 1000} tysięcy tokenów. Dokładny procent jest w ustawieniach Claude, w zakładce użycie.")
+
+
+CREDENTIALS = "~/.claude/.credentials.json"
+USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
+
+
+async def account_usage(creds_path: str = CREDENTIALS) -> dict:
+    """Stan limitu całego konta Claude (to samo co /usage w Claude Code).
+
+    Używa logowania Claude Code z Pi; token nie jest nigdzie zapisywany ani logowany.
+    """
+    import httpx
+
+    creds = json.loads(Path(creds_path).expanduser().read_text(encoding="utf-8"))
+    token = creds["claudeAiOauth"]["accessToken"]
+    async with httpx.AsyncClient() as c:
+        r = await c.get(USAGE_URL, timeout=10, headers={
+            "Authorization": f"Bearer {token}", "anthropic-beta": "oauth-2025-04-20",
+            "Content-Type": "application/json"})
+        r.raise_for_status()
+        return r.json()
+
+
+def _when(iso: str | None, now: datetime) -> str:
+    if not iso:
+        return ""
+    d = datetime.fromisoformat(iso.replace("Z", "+00:00")).astimezone(TZ)
+    day = "dziś" if d.date() == now.date() else "jutro" if (d.date() - now.date()).days == 1 else f"{d.day} {MONTHS[d.month - 1]}"
+    return f"{day} o {d:%H:%M}"
+
+
+def account_report(data: dict, now: datetime | None = None) -> str:
+    now = now or datetime.now(TZ)
+    parts = []
+    for key, name in (("five_hour", "Sesja"), ("seven_day", "Tydzień")):
+        w = data.get(key) or {}
+        if w.get("utilization") is None:
+            continue
+        pct = round(float(w["utilization"]))
+        level = "dużo" if pct >= 80 else "średnio" if pct >= 50 else "spokojnie"
+        reset = _when(w.get("resets_at"), now)
+        parts.append(f"{name}: zużyte {pct} procent, {level}" + (f", odnowienie {reset}." if reset else "."))
+    return " ".join(parts) + " To limit całego konta, nie tylko mój." if parts else ""

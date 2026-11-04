@@ -231,7 +231,15 @@ async def amain(args) -> None:
     usage_log = UsageLog(cfgmod.resolve(cfg, cfg["usage"]["path"]))
     brain = build_brain(cfg, context=day.text if day else None, on_result=usage_log.add_result)
 
-    def usage_report():
+    async def usage_report():
+        from .usage import account_report, account_usage
+
+        try:
+            text = account_report(await account_usage())
+            if text:
+                return text
+        except Exception as exc:
+            log.warning("limit konta: %s", exc)
         return report(usage_log, tuple(cfg["usage"]["claude_bands"]))
 
     player = None
