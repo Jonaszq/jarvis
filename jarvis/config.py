@@ -21,7 +21,8 @@ DEFAULTS: dict[str, Any] = {
         "block_ms": 80,                          # openWakeWord lubi 80 ms
         "preroll_s": 1.0,                        # bufor sprzed wake worda
         "output_device": None,                   # None = domyślne (JBL przez PipeWire)
-        "output_rate": 22050,                    # tyle daje Piper medium i ElevenLabs pcm_22050
+        "output_rate": 22050,
+        "bt_speaker": None,                      # MAC głośnika BT, np. "70:99:1C:47:E0:1B"; pilnujemy połączenia                    # tyle daje Piper medium i ElevenLabs pcm_22050
     },
     "wakeword": {
         "model": "hey_jarvis",

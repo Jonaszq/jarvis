@@ -170,6 +170,11 @@ async def amain(args) -> None:
         player.start()
 
     loop = asyncio.get_running_loop()
+    bt_task = None
+    if a.get("bt_speaker") and not args.mute:
+        from .audio.bluetooth import keep_connected
+
+        bt_task = asyncio.create_task(keep_connected(a["bt_speaker"]))
     if args.text:
         listener, stt, brain = _KeyboardListener(), _TextSTT(), _PrintingBrain(brain)
     else:
@@ -206,6 +211,8 @@ async def amain(args) -> None:
             except (asyncio.CancelledError, EOFError):
                 pass
     finally:
+        if bt_task:
+            bt_task.cancel()
         if _EL_CLIENT is not None:
             await _EL_CLIENT.close()
         # Bez tego program kończył się, zanim głośnik dograł ostatnie zdanie.
