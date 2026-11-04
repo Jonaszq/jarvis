@@ -63,7 +63,7 @@ class DayContext:
     async def _weather(self, client, s) -> None:
         try:
             w = s["weather"]
-            self.parts["weather"] = weather.summary(await weather.fetch(client, w["lat"], w["lon"], 2), w["place"])
+            self.parts["weather"] = weather.summary(await weather.fetch(client, w["lat"], w["lon"], 3), w["place"])
         except Exception as exc:
             log.warning("pogoda: %s", exc)
 
