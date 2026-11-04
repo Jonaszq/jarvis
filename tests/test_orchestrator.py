@@ -145,7 +145,7 @@ async def test_sleep_ignores_everything_until_wake_phrase(tmp_path):
     await orch.run_once()
     assert orch.sleeping and p["brain"].asked == []
     said = len(p["tts"].said)
-    p["listener"].utterances = [Utterance(b"jaka jest pogoda", 16000, 2.0, 200.0)]
+    p["listener"].utterances = [Utterance("jaka jest dziś pogoda".encode(), 16000, 2.0, 200.0)]
     await orch.run_once()
     assert p["brain"].asked == [] and len(p["tts"].said) == said  # cisza, zero kosztów mózgu
     p["listener"].utterances = [Utterance("Hej Jarvis, obudź się!".encode(), 16000, 3.0, 300.0),
