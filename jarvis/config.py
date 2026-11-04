@@ -35,8 +35,16 @@ DEFAULTS: dict[str, Any] = {
         "no_speech_timeout_s": 4,
     },
     "followup_s": 5,             # okno na dopytanie bez wake worda
+    "elevenlabs": {
+        "voice_id": "pNInz6obpgDQGcFmaJgB",   # tymczasowy męski głos; wybór: scripts/voices.py
+        "tts_model": "eleven_flash_v2_5",
+        "stt_model": "scribe_v1",
+        "language": "pl",
+        "quota_switch": 0.95,                 # przy 95% limitu przechodzimy na Pipera
+        "voice_settings": None,
+    },
     "stt": {
-        "engine": "whisper_local",
+        "engine": "elevenlabs",               # elevenlabs (zapas: whisper_local) | whisper_local
         "whisper_cli": "~/whisper.cpp/build/bin/whisper-cli",
         "whisper_model": "~/whisper.cpp/models/ggml-base.bin",  # wielojęzyczny, nie .en,
         "language": "pl",
@@ -54,7 +62,7 @@ DEFAULTS: dict[str, Any] = {
         "warmup": False,
     },
     "tts": {
-        "engine": "piper_local",
+        "engine": "elevenlabs",               # elevenlabs (zapas: piper_local) | piper_local
         "piper_bin": ".venv/bin/piper",
         "voice": "models/pl_PL-darkman-medium.onnx",
         "sample_rate": None,            # None = z pliku .onnx.json
@@ -93,6 +101,24 @@ def resolve(cfg: dict[str, Any], value: str | None) -> Path | None:
     if not p.is_absolute():
         p = Path(cfg["_root"]) / p
     return p
+
+
+def load_env_file(path: Path | str = "/etc/jarvis/env") -> None:
+    """Wczytuje sekrety z pliku KLUCZ=wartość (systemd robi to sam, ręczne uruchomienie nie)."""
+    p = Path(path)
+    try:
+        lines = p.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip().removeprefix("export ").strip()
+        value = value.strip().strip('"').strip("'")
+        if key and value:
+            os.environ.setdefault(key, value)
 
 
 def secret(name: str) -> str | None:

@@ -4,7 +4,7 @@ Asystent głosowy po polsku na Raspberry Pi 4. Mówisz „hey Jarvis”, pytasz,
 Cel: 2–3 s od końca pytania do pierwszego słowa.
 
 Mózgiem jest Claude Code CLI na subskrypcji konta. Działa jako jeden ciepły proces w trybie stream-json, bez klucza API.
-Lokalnie: openWakeWord, whisper.cpp i Piper (polski głos). ElevenLabs dojdzie w etapie 4.
+Mowa i rozpoznawanie: ElevenLabs (Flash v2.5, Scribe), z automatycznym zapasem lokalnym (Piper, whisper.cpp), gdy brak internetu albo kończy się limit. Wake word: openWakeWord.
 
 ## Instalacja na Pi
 
@@ -36,3 +36,9 @@ systemctl --user start jarvis                 # normalna praca
 - `jarvis/metrics.py`: czasy każdej tury do `logs/turns.jsonl`.
 
 Testy: `pip install -e '.[dev]' && pytest`.
+
+## ElevenLabs
+
+Klucz wpisz na Pi w `/etc/jarvis/env` jako `ELEVENLABS_API_KEY=...`, nigdy w repo.
+Wybór głosu: `.venv/bin/python scripts/voices.py polish` (darmowe próbki polskich głosów) albo `mine` (głosy z konta mówiące po polsku).
+Wybrany `voice_id` wpisz w `config.yaml` w sekcji `elevenlabs`.

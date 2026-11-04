@@ -28,19 +28,65 @@ def build_brain(cfg):
                            warmup=b.get("warmup", False))
 
 
-def build_tts(cfg):
+log = logging.getLogger("jarvis")
+_EL_CLIENT = None
+
+
+def elevenlabs_client(cfg):
+    """Jeden klient (jedno połączenie) dla STT i TTS. None, gdy nie ma klucza."""
+    global _EL_CLIENT
+    key = cfgmod.secret("ELEVENLABS_API_KEY")
+    if not key:
+        return None
+    if _EL_CLIENT is None:
+        from .elevenlabs import ElevenLabsClient
+
+        _EL_CLIENT = ElevenLabsClient(key, quota_switch=cfg["elevenlabs"]["quota_switch"])
+    return _EL_CLIENT
+
+
+def build_local_tts(cfg):
     from .tts.piper_local import PiperTTS
 
     t = cfg["tts"]
-    return PiperTTS(cfgmod.resolve(cfg, t["voice"]), str(cfgmod.resolve(cfg, t["piper_bin"])), t.get("mode", "auto"), t.get("sample_rate"))
+    return PiperTTS(cfgmod.resolve(cfg, t["voice"]), str(cfgmod.resolve(cfg, t["piper_bin"])),
+                    t.get("mode", "auto"), t.get("sample_rate"))
 
 
-def build_stt(cfg):
+def build_local_stt(cfg):
     from .stt.whisper_local import WhisperLocalSTT
 
     s = cfg["stt"]
     return WhisperLocalSTT(cfgmod.resolve(cfg, s["whisper_cli"]), cfgmod.resolve(cfg, s["whisper_model"]),
                            s["language"], s["threads"])
+
+
+def build_tts(cfg):
+    local = build_local_tts(cfg)
+    client = elevenlabs_client(cfg) if cfg["tts"]["engine"] == "elevenlabs" else None
+    if client is None:
+        if cfg["tts"]["engine"] == "elevenlabs":
+            log.warning("brak ELEVENLABS_API_KEY w /etc/jarvis/env, mówię Piperem")
+        return local
+    from .elevenlabs import ElevenLabsTTS
+    from .fallback import FallbackTTS
+
+    e = cfg["elevenlabs"]
+    rate = cfg["audio"].get("output_rate", 22050)
+    cloud = ElevenLabsTTS(client, e["voice_id"], e["tts_model"], e["language"], rate, e.get("voice_settings"))
+    return FallbackTTS(cloud, local)
+
+
+def build_stt(cfg):
+    local = build_local_stt(cfg)
+    client = elevenlabs_client(cfg) if cfg["stt"]["engine"] == "elevenlabs" else None
+    if client is None:
+        return local
+    from .elevenlabs import ElevenLabsSTT
+    from .fallback import FallbackSTT
+
+    e = cfg["elevenlabs"]
+    return FallbackSTT(ElevenLabsSTT(client, e["stt_model"], e["language"]), local)
 
 
 class _NullPlayer:
@@ -106,6 +152,7 @@ class _MuteTTS:
 
 
 async def amain(args) -> None:
+    cfgmod.load_env_file()
     cfg = cfgmod.load(args.config)
     a = cfg["audio"]
     metrics = MetricsLog(cfgmod.resolve(cfg, cfg["metrics"]["path"]))
@@ -159,6 +206,8 @@ async def amain(args) -> None:
             except (asyncio.CancelledError, EOFError):
                 pass
     finally:
+        if _EL_CLIENT is not None:
+            await _EL_CLIENT.close()
         # Bez tego program kończył się, zanim głośnik dograł ostatnie zdanie.
         if hasattr(player, "stop"):
             await player.drain()

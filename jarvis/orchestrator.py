@@ -109,6 +109,10 @@ class Orchestrator:
                 log.exception("nie udało się zagrać dźwięku błędu")
         finally:
             turn.mark("done")
+            for part, obj in (("stt", self.stt), ("tts", self.tts)):
+                engine = getattr(obj, "last_engine", None)
+                if engine:
+                    turn.info[f"{part}_engine"] = engine
             self._last_turn_t = self.clock()
             if self.metrics:
                 record = self.metrics.write(turn)
