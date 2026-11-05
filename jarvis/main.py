@@ -82,6 +82,16 @@ def build_local_stt(cfg):
 
 def build_tts(cfg):
     local = build_local_tts(cfg)
+    if cfg["tts"]["engine"] == "azure":
+        key, region = cfgmod.secret("AZURE_SPEECH_KEY"), cfgmod.secret("AZURE_SPEECH_REGION")
+        if not key or not region:
+            log.warning("brak AZURE_SPEECH_KEY/AZURE_SPEECH_REGION w /etc/jarvis/env, mówię Piperem")
+            return local
+        from .fallback import FallbackTTS
+        from .tts.azure import AzureTTS
+
+        a = cfg["azure"]
+        return FallbackTTS(AzureTTS(key, region, a["voice"], a.get("rate")), local)
     client = elevenlabs_client(cfg) if cfg["tts"]["engine"] == "elevenlabs" else None
     if client is None:
         if cfg["tts"]["engine"] == "elevenlabs":
