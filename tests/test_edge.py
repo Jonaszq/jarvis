@@ -17,7 +17,7 @@ async def test_edge_errors_become_edgeerror(monkeypatch):
             pass
 
 
-@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="brak ffmpeg")
+@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="brak ffmpeg do zrobienia testowego mp3")
 async def test_mp3_decode_roundtrip(tmp_path):
     import asyncio
 

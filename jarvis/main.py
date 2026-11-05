@@ -296,7 +296,7 @@ async def amain(args) -> None:
     orch = Orchestrator(listener, stt, brain, tts, player, metrics,
                         followup_s=cfg["followup_s"], reset_after_s=cfg["brain"]["reset_after_s"], journal=journal,
                         max_sentences=cfg.get("max_spoken_sentences", 5), usage_report=usage_report,
-                        first_chunk_words=6 if cfg["tts"]["engine"] == "piper_local" else None)
+                        first_chunk_words=6 if cfg["tts"]["engine"] in ("piper_local", "edge") else None)
     stop = asyncio.Event()
     for sig in (signal.SIGTERM, signal.SIGINT):
         try:

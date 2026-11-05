@@ -19,6 +19,15 @@ class EdgeError(RuntimeError):
 
 
 async def mp3_to_pcm(mp3: bytes, rate: int = 24000, ffmpeg: str = "ffmpeg") -> bytes:
+    """MP3 -> PCM 16-bit mono. W procesie (miniaudio, ~10 ms), a bez niego ffmpegiem (~0,8 s na Pi)."""
+    try:
+        import miniaudio  # type: ignore
+
+        return miniaudio.decode(mp3, nchannels=1, sample_rate=rate).samples.tobytes()
+    except ImportError:
+        pass
+    except Exception as exc:
+        log.warning("miniaudio: %s, próbuję ffmpeg", exc)
     proc = await asyncio.create_subprocess_exec(
         ffmpeg, "-hide_banner", "-loglevel", "error", "-f", "mp3", "-i", "pipe:0",
         "-f", "s16le", "-ac", "1", "-ar", str(rate), "pipe:1",
@@ -38,7 +47,8 @@ class EdgeTTS:
         self.timeout_s = timeout_s
 
     async def start(self) -> None:
-        pass
+        # Import edge_tts (aiohttp) trwa na Pi ~1 s: robimy go na starcie, nie przy pierwszym zdaniu.
+        import edge_tts  # type: ignore  # noqa: F401
 
     async def close(self) -> None:
         pass
