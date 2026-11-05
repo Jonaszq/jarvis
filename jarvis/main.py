@@ -82,6 +82,12 @@ def build_local_stt(cfg):
 
 def build_tts(cfg):
     local = build_local_tts(cfg)
+    if cfg["tts"]["engine"] == "edge":
+        from .fallback import FallbackTTS
+        from .tts.edge import EdgeTTS
+
+        e = cfg["edge"]
+        return FallbackTTS(EdgeTTS(e["voice"], e.get("rate") or "+0%"), local)
     if cfg["tts"]["engine"] == "azure":
         key, region = cfgmod.secret("AZURE_SPEECH_KEY"), cfgmod.secret("AZURE_SPEECH_REGION")
         if not key or not region:

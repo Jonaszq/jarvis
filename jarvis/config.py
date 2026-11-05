@@ -49,6 +49,10 @@ DEFAULTS: dict[str, Any] = {
         "quota_switch": 0.95,                 # przy 95% limitu przechodzimy na Pipera
         "voice_settings": None,
     },
+    "edge": {
+        "voice": "pl-PL-MarekNeural",         # głos z Edge (bez konta); inne: pl-PL-ZofiaNeural
+        "rate": "+0%",
+    },
     "azure": {
         "voice": "pl-PL-MarekNeural",         # męski; inne: pl-PL-ZofiaNeural, pl-PL-AgnieszkaNeural
         "rate": None,                         # np. "+10%" szybciej
@@ -74,7 +78,7 @@ DEFAULTS: dict[str, Any] = {
         "web": True,                    # wyszukiwanie w internecie (WebSearch/WebFetch w Claude Code)
     },
     "tts": {
-        "engine": "elevenlabs",               # elevenlabs | azure (zapas zawsze piper_local) | piper_local
+        "engine": "elevenlabs",               # elevenlabs | edge | azure (zapas zawsze piper_local) | piper_local
         "piper_bin": ".venv/bin/piper",
         "voice": "models/pl_PL-darkman-medium.onnx",
         "sample_rate": None,            # None = z pliku .onnx.json

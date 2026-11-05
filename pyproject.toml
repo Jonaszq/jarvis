@@ -9,6 +9,7 @@ dependencies = [
     "sounddevice>=0.4.6",
     "httpx>=0.27",
     "websockets>=13",
+    "edge-tts>=7.0",
 ]
 
 [project.optional-dependencies]
