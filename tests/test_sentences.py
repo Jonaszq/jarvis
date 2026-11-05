@@ -1,0 +1,48 @@
+from jarvis.text.sentences import SentenceSplitter, split_all
+
+
+def test_splits_on_sentence_end_as_tokens_arrive():
+    s = SentenceSplitter()
+    assert s.feed("Dziś jest ") == []
+    assert s.feed("słonecznie. Jutro") == ["Dziś jest słonecznie."]
+    assert s.feed(" pada! A") == ["Jutro pada!"]
+    assert s.flush() == ["A"] or s.flush() == []
+
+
+def test_flush_returns_rest():
+    assert list(split_all(["Masz dwa spotkania", " o dziesiątej"])) == ["Masz dwa spotkania o dziesiątej"]
+
+
+def test_long_sentence_cut_at_comma():
+    text = "Jutro rano będzie zimno, około dwóch stopni na plusie, a po południu słońce wyjdzie zza chmur."
+    out = list(split_all([text], max_words=8))
+    assert out[0] == "Jutro rano będzie zimno,"
+    assert " ".join(out) == text
+
+
+def test_markdown_stripped():
+    assert list(split_all(["**Uwaga**: test. "])) == ["Uwaga: test."]
+
+
+def test_decimal_number_not_split():
+    assert list(split_all(["Jest 2.5 stopnia. Koniec."])) == ["Jest 2.5 stopnia.", "Koniec."]
+
+
+def test_screen_only_bits_are_not_spoken():
+    from jarvis.text.sentences import split_all
+
+    out = list(split_all(["Funkcja `normalize` używa \\w. ", "Źródła: plik jarvis/commands.py. ", "Zobacz https://x.pl/a teraz."]))
+    assert out == ["Funkcja normalize używa w.", "Zobacz teraz."]
+
+
+def test_short_first_chunk_for_local_tts():
+    from jarvis.text.sentences import split_all
+
+    text = "Dziś jest czwartek, trzynasta trzydzieści dwie, więc dzień dopiero w połowie. Potem będzie wieczór i noc też."
+    out = list(split_all([text], first_max_words=6))
+    assert out[0] == "Dziś jest czwartek,"
+    assert out[-1] == "Potem będzie wieczór i noc też."
+    out = list(split_all(["Jutro będzie deszczowo. Weź parasol."], first_max_words=6))
+    assert out == ["Jutro będzie deszczowo.", "Weź parasol."]
+    out = list(split_all(["To jest bardzo długie zdanie bez żadnego przecinka w środku tutaj."], first_max_words=6))
+    assert out[0] == "To jest bardzo długie zdanie bez"

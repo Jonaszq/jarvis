@@ -1,0 +1,64 @@
+# Skopiuj do config.yaml i dopasuj. config.yaml nie trafia do repo.
+# Sekrety (klucze API) NIE tutaj, tylko w /etc/jarvis/env.
+
+audio:
+  input_device: null                     # null = domyślne wejście PipeWire; albo fragment nazwy z `python -m sounddevice`
+  input_rate: null                       # null = natywna częstotliwość mikrofonu
+  preroll_s: 1.0
+  output_device: null                    # null = domyślne wyjście (JBL)
+  output_rate: 22050
+  bt_speaker: null                       # MAC głośnika BT (np. JBL "70:99:1C:47:E0:1B"), gdy gra przez Bluetooth; przy kablu audio: null
+
+wakeword:
+  model: hey_jarvis
+  threshold: 0.5
+
+vad:
+  silence_ms: 900          # ile ciszy kończy wypowiedź
+  energy_threshold: 150    # RMS po filtrze 150 Hz; stroimy: scripts/measure.py mic
+  max_record_s: 12
+  no_speech_timeout_s: 4
+
+followup_s: 5
+
+elevenlabs:
+  voice_id: TX3LPaxmHKxFdv7VOQHJ   # Liam (wbudowany). Na planie Starter: polski Liam 4uhvFPkbY1bS6SM5NREF
+  tts_model: eleven_flash_v2_5
+  stt_model: scribe_v1
+  language: pl
+  quota_switch: 0.95
+
+stt:
+  engine: elevenlabs                # zapas: whisper_local
+  whisper_cli: ~/whisper.cpp/build/bin/whisper-cli
+  whisper_model: ~/whisper.cpp/models/ggml-base.bin
+  language: pl
+  threads: 4
+
+brain:
+  engine: claude_code
+  claude_bin: claude
+  model: haiku
+  effort: low
+  prompt_file: brain/jarvis_prompt.md
+  workdir: ~/.jarvis-brain
+  reset_after_s: 300
+  warmup: false
+
+tts:
+  engine: elevenlabs                # zapas: piper_local
+  piper_bin: .venv/bin/piper
+  voice: models/pl_PL-darkman-medium.onnx
+  mode: auto
+
+metrics:
+  path: ~/jarvis/logs/turns.jsonl
+
+skills:
+  weather: {place: Gorzów Wielkopolski, lat: 52.7368, lon: 15.2288}
+  calendar:
+    credentials: ~/.config/jarvis/google.json   # tworzy scripts/google_auth.py
+    calendar_id: primary
+  github: {user: Jonaszq, days: 14, top: 5, pinned: []}   # pinned: repo zawsze w kontekście
+  context_refresh_s: 300
+# Opcjonalnie w /etc/jarvis/env: GITHUB_TOKEN=github_pat_... (tylko odczyt), żeby widział prywatne repo.

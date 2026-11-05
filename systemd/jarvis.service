@@ -1,0 +1,22 @@
+# Usługa użytkownika (systemctl --user), bo dźwięk przez PipeWire/Bluetooth
+# i logowanie Claude Code żyją w sesji użytkownika, a nie roota.
+# install.sh kopiuje ją do ~/.config/systemd/user/ i włącza linger,
+# żeby Jarvis startował po restarcie Pi bez logowania.
+[Unit]
+Description=Jarvis - asystent głosowy
+After=pipewire.service wireplumber.service network-online.target
+Wants=pipewire.service wireplumber.service
+
+[Service]
+Type=simple
+WorkingDirectory=%h/jarvis
+EnvironmentFile=-/etc/jarvis/env
+Environment=PYTHONUNBUFFERED=1
+Environment=JARVIS_CONFIG=%h/jarvis/config.yaml
+ExecStart=%h/jarvis/.venv/bin/python -m jarvis.main
+Restart=always
+RestartSec=3
+Nice=-5
+
+[Install]
+WantedBy=default.target
