@@ -67,6 +67,7 @@ class Orchestrator:
         journal=None,
         max_sentences: int = 5,
         usage_report=None,
+        first_chunk_words: int | None = None,
     ):
         self.listener = listener
         self.stt = stt
@@ -79,6 +80,7 @@ class Orchestrator:
         self.clock = clock
         self.journal = journal
         self.usage_report = usage_report  # () -> str
+        self.first_chunk_words = first_chunk_words
         # Twardy limit: Haiku potrafi mimo promptu napisać minutę mowy.
         # Po limicie pytamy "mówić dalej?", a resztę trzymamy na "tak".
         self.max_sentences = max_sentences
@@ -208,7 +210,7 @@ class Orchestrator:
                 rest.append(sentence)
 
         try:
-            splitter = SentenceSplitter()
+            splitter = SentenceSplitter(first_max_words=self.first_chunk_words)
             async for chunk in self.brain.ask(text):
                 turn.mark("first_token")
                 answer.append(chunk)

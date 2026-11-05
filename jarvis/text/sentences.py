@@ -15,9 +15,13 @@ _SOFT = re.compile(r"[,;:–—]\s+")
 
 
 class SentenceSplitter:
-    def __init__(self, max_words: int = 12, min_chars: int = 2):
+    def __init__(self, max_words: int = 12, min_chars: int = 2, first_max_words: int | None = None):
         self.max_words = max_words
         self.min_chars = min_chars
+        # Lokalny TTS (Piper) mówi dopiero po zsyntezowaniu całego kawałka, więc
+        # pierwszy kawałek robimy krótki: szybciej słychać pierwsze słowo.
+        self.first_max_words = first_max_words
+        self._emitted = 0
         self._buf = ""
 
     def feed(self, chunk: str) -> list[str]:
@@ -29,6 +33,7 @@ class SentenceSplitter:
                 break
             if len(sentence) >= self.min_chars:
                 out.append(sentence)
+                self._emitted += 1
         return out
 
     def flush(self) -> list[str]:
@@ -37,7 +42,24 @@ class SentenceSplitter:
         return [rest] if len(rest) >= self.min_chars else []
 
     def _take(self) -> str | None:
+        first = self.first_max_words and self._emitted == 0
         m = _END.search(self._buf)
+        if first:
+            end = m.end() if m else len(self._buf)
+            words = self._buf[:end].split()
+            # Za długie pierwsze zdanie (albo jeszcze bez kropki): tniemy po
+            # przecinku w pierwszych ~10 słowach, a bez przecinka po first_max_words.
+            if len(words) > self.first_max_words:
+                head = " ".join(self._buf.split(" ")[: max(self.first_max_words, 10)])
+                soft = [x for x in _SOFT.finditer(head) if len(head[: x.end()].split()) >= 2]
+                if soft:
+                    cut = soft[0].end()
+                elif m and len(words) <= 10:
+                    cut = m.end()
+                else:
+                    cut = len(" ".join(self._buf.split(" ")[: self.first_max_words])) + 1
+                sentence, self._buf = self._buf[:cut], self._buf[cut:]
+                return _clean(sentence)
         if m:
             sentence, self._buf = self._buf[: m.end()], self._buf[m.end():]
             return _clean(sentence)

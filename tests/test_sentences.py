@@ -33,3 +33,16 @@ def test_screen_only_bits_are_not_spoken():
 
     out = list(split_all(["Funkcja `normalize` używa \\w. ", "Źródła: plik jarvis/commands.py. ", "Zobacz https://x.pl/a teraz."]))
     assert out == ["Funkcja normalize używa w.", "Zobacz teraz."]
+
+
+def test_short_first_chunk_for_local_tts():
+    from jarvis.text.sentences import split_all
+
+    text = "Dziś jest czwartek, trzynasta trzydzieści dwie, więc dzień dopiero w połowie. Potem będzie wieczór i noc też."
+    out = list(split_all([text], first_max_words=6))
+    assert out[0] == "Dziś jest czwartek,"
+    assert out[-1] == "Potem będzie wieczór i noc też."
+    out = list(split_all(["Jutro będzie deszczowo. Weź parasol."], first_max_words=6))
+    assert out == ["Jutro będzie deszczowo.", "Weź parasol."]
+    out = list(split_all(["To jest bardzo długie zdanie bez żadnego przecinka w środku tutaj."], first_max_words=6))
+    assert out[0] == "To jest bardzo długie zdanie bez"
